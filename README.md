@@ -10,3 +10,4 @@ Offline-тренажёр chase-заездов для оригинальной As
 - [Инструкция ручной проверки Phase 0](docs/PHASE0_TEST.md)
 - [Инструкция ручной проверки Phase 1](docs/PHASE1_TEST.md)
 - [Решение о смене playback backend](docs/PLAYBACK_BACKEND_DECISION.md)
+- [Localhost remote-car backend spike](docs/SERVER_BACKEND_SPIKE.md)

@@ -433,6 +433,6 @@ Source code находится в этом репозитории. Phase 1 ис�
 
 ## 14. Следующий практический шаг
 
-Текущий шаг — Phase 1.5: добавить в существующее окно кнопки native capture/play и проверить официальный `ac.setReplayBasedGhost()` на том же автомобиле. Сначала проверяется live fidelity и collision mode `stiff`, затем отдельно persistence сохранённого рана. Physical teleport backend больше не полируется.
+Phase 1.5 runtime probe подтвердил, что CSP 0.2.11 build 3465 не содержит `ac.setReplayBasedGhost` и `ac.disableCar`; это последняя публичная рекомендуемая версия CSP. Нативный Lua replay-car путь закрыт до появления публичного CSP API.
 
-Если replay-based opponent проходит live fidelity, сохраняем текущий in-game workflow и решаем только загрузку базы. Если persistence не проходит, переходим к localhost fake-server/remote-car prototype без переделки recorder, run library и UI.
+Текущий шаг — localhost fake-server/remote-car prototype на AssettoServer. Первый server plugin читает существующий `latest.json` и отправляет записанное состояние через штатные AC network position packets. После compile/configuration spike проверяются visual fidelity и односторонний контакт; только затем добавляются in-game commands и автоматический launcher.

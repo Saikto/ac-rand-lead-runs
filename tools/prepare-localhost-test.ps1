@@ -186,6 +186,8 @@ GUID=1
 "@
 
 $escapedRunFile = $RunFile.Replace("'", "''")
+$runDirectory = Split-Path -Parent $RunFile
+$escapedRunDirectory = $runDirectory.Replace("'", "''")
 $extraCfg = @"
 MinimumCSPVersion: 2651
 UseSteamAuth: false
@@ -206,6 +208,8 @@ $pluginCfg = @"
 Enabled: true
 LeaderSessionId: 1
 RunFile: '$escapedRunFile'
+RunDirectory: '$escapedRunDirectory'
+AutoStart: true
 StartDelaySeconds: 5
 Loop: true
 LoopDelaySeconds: 3
@@ -222,6 +226,7 @@ Write-Utf8NoBom (Join-Path $cfgPath 'plugin_random_lead_server_cfg.yml') $plugin
 $runtimeInfo = [ordered]@{
     generatedAt = [DateTime]::UtcNow.ToString('o')
     runFile = $RunFile
+    runDirectory = $runDirectory
     runId = [string]$run.id
     duration = [double]$run.duration
     track = [string]$run.track

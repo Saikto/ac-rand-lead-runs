@@ -21,15 +21,19 @@ local function currentIdentity()
   }
 end
 
-function M.path()
+function M.directory()
   local identity = currentIdentity()
   return string.format(
-    '%s\\Assetto Corsa\\ac-random-lead-runs\\runs\\%s\\%s\\%s\\latest.json',
+    '%s\\Assetto Corsa\\ac-random-lead-runs\\runs\\%s\\%s\\%s',
     ac.getFolder(ac.FolderID.Documents),
     safeSegment(identity.track),
     safeSegment(identity.layout),
     safeSegment(identity.car)
   )
+end
+
+function M.path()
+  return M.directory() .. '\\latest.json'
 end
 
 function M.create(frames, duration)
@@ -82,7 +86,15 @@ function M.save(run)
     return false, validationError
   end
 
-  local path = M.path()
+  local directory = M.directory()
+  local baseId = run.id
+  local path = directory .. '\\' .. safeSegment(baseId) .. '.json'
+  local suffix = 2
+  while io.fileExists(path) do
+    run.id = string.format('%s-%d', baseId, suffix)
+    path = string.format('%s\\%s.json', directory, safeSegment(run.id))
+    suffix = suffix + 1
+  end
   local encodedOk, encoded = pcall(JSON.stringify, run)
   if not encodedOk then
     return false, 'JSON encoding failed: ' .. tostring(encoded)
@@ -90,6 +102,10 @@ function M.save(run)
   io.createFileDir(path)
   if not io.save(path, encoded, true) then
     return false, 'Could not write run file: ' .. path
+  end
+  local latestPath = M.path()
+  if not io.save(latestPath, encoded, true) then
+    return false, 'Run was saved, but latest.json could not be updated: ' .. latestPath
   end
   return true, nil, path
 end

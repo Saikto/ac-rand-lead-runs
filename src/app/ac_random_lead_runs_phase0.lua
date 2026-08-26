@@ -32,6 +32,57 @@ local STORAGE = {
   nativeReplayOffset = STORAGE_PREFIX .. 'nativeReplayOffset',
 }
 
+local SERVER_URL = 'http://127.0.0.1:8081/api/random-lead'
+local server = {
+  connected = false,
+  requestInFlight = false,
+  commandInFlight = false,
+  pollTimer = 0,
+  pollSequence = 0,
+  status = nil,
+  error = 'Connecting to localhost playback server…',
+}
+
+local function acceptServerResponse(err, response)
+  server.requestInFlight = false
+  server.commandInFlight = false
+  if err ~= nil then
+    server.connected = false
+    server.error = tostring(err)
+    return
+  end
+  if response == nil or response.status < 200 or response.status >= 300 then
+    server.connected = false
+    server.error = response == nil and 'Empty HTTP response' or
+      string.format('HTTP %s: %s', tostring(response.status), tostring(response.body))
+    return
+  end
+  local parsedOk, parsed = pcall(JSON.parse, response.body)
+  if not parsedOk or type(parsed) ~= 'table' then
+    server.connected = false
+    server.error = 'Invalid server response: ' .. tostring(parsed)
+    return
+  end
+  server.connected = true
+  server.status = parsed
+  server.error = ''
+end
+
+local function pollServer(force)
+  if server.requestInFlight or (not force and server.pollTimer > 0) then return end
+  server.requestInFlight = true
+  server.pollTimer = 0.5
+  server.pollSequence = server.pollSequence + 1
+  web.get(SERVER_URL .. '/status?request=' .. tostring(server.pollSequence), acceptServerResponse)
+end
+
+local function sendServerCommand(command)
+  if server.commandInFlight then return end
+  server.commandInFlight = true
+  server.requestInFlight = true
+  web.post(SERVER_URL .. '/command/' .. command, acceptServerResponse)
+end
+
 local function read(key, fallback)
   local value = ac.load(key)
   if value == nil then return fallback end
@@ -56,13 +107,14 @@ local function statusColor(status)
     return rgbm(1, 0.25, 0.25, 1)
   elseif status == 'recording' then
     return rgbm(1, 0.25, 0.25, 1)
-  elseif status == 'running' then
+  elseif status == 'running' or status == 'playing' then
     return rgbm(0.25, 0.9, 0.55, 1)
   elseif status == 'native_recording' then
     return rgbm(0.95, 0.35, 1, 1)
   elseif status == 'native_running' then
     return rgbm(0.25, 1, 0.8, 1)
-  elseif status == 'review' or status == 'parked' or status == 'setup' then
+  elseif status == 'review' or status == 'parked' or status == 'setup'
+      or status == 'countdown' or status == 'loop_wait' or status == 'waiting_for_player' then
     return rgbm(1, 0.7, 0.2, 1)
   elseif status == 'saved' or status == 'completed' or status == 'native_ready' or status == 'native_completed' then
     return rgbm(0.35, 0.75, 1, 1)
@@ -70,7 +122,85 @@ local function statusColor(status)
   return rgbm.colors.white
 end
 
+local function serverButton(label, command, enabled)
+  if not enabled then ui.pushDisabled() end
+  local clicked = ui.button(label, vec2(ui.availableSpaceX(), 38))
+  if not enabled then ui.popDisabled() end
+  if clicked and enabled then sendServerCommand(command) end
+end
+
+local function drawServerWindow()
+  pollServer(false)
+  ui.pushFont(ui.Font.Title)
+  ui.text('Random Lead Runs')
+  ui.popFont()
+
+  if not server.connected or server.status == nil then
+    ui.pushStyleColor(ui.StyleColor.Text, rgbm(1, 0.35, 0.25, 1))
+    ui.text('Server controls: disconnected')
+    ui.popStyleColor()
+    ui.textWrapped(server.error)
+    if ui.button('Retry connection', vec2(ui.availableSpaceX(), 38)) then pollServer(true) end
+    ui.offsetCursorY(8)
+    ui.textWrapped('These controls work on the generated localhost AssettoServer session at port 8081.')
+    return
+  end
+
+  local status = server.status
+  local state = tostring(status.state or 'unknown')
+  ui.pushStyleColor(ui.StyleColor.Text, statusColor(state))
+  ui.text('Status: ' .. state)
+  ui.popStyleColor()
+  ui.textWrapped(tostring(status.message or ''))
+  ui.text(string.format('Mode: %s   Library: %d run(s)',
+    tostring(status.mode or 'current'), tonumber(status.runCount) or 0))
+  if state == 'playing' then
+    ui.text(string.format('Progress: %.1f / %.1f s',
+      tonumber(status.elapsed) or 0, tonumber(status.duration) or 0))
+  end
+
+  local runId = status.runId
+  if runId ~= nil and tostring(runId) ~= '' then
+    ui.textWrapped(string.format('Selected: %s (%s/%s)', tostring(runId),
+      tostring(status.selectedIndex or '?'), tostring(status.runCount or '?')))
+  elseif status.mode == 'random' then
+    ui.text('Selected: hidden until attempt ends')
+  end
+  if status.lastCompletedRunId ~= nil and tostring(status.lastCompletedRunId) ~= '' then
+    ui.textWrapped('Last completed: ' .. tostring(status.lastCompletedRunId))
+  end
+
+  local enabled = not server.commandInFlight and (tonumber(status.runCount) or 0) > 0
+  ui.offsetCursorY(8)
+  serverButton('Play selected run', 'current', enabled)
+  serverButton('Play next run', 'next', enabled)
+  serverButton('Start random mode', 'random', enabled)
+  serverButton('Restart current attempt', 'restart', enabled)
+  serverButton('Stop and hide leader', 'stop', enabled and state ~= 'stopped')
+
+  ui.offsetCursorY(8)
+  ui.separator()
+  ui.text('Diagnostics')
+  ui.text(string.format('Leader visible: %s   API: localhost:8081', status.visible and 'yes' or 'no'))
+  if ui.button('Copy server status') then
+    ac.setClipboardText(string.format(
+      'State: %s\nMode: %s\nMessage: %s\nLibrary: %s\nSelected: %s\nLast completed: %s\nProgress: %.2f / %.2f s\nVisible: %s',
+      state, tostring(status.mode), tostring(status.message), tostring(status.runCount),
+      tostring(status.runId or 'hidden'), tostring(status.lastCompletedRunId or '-'),
+      tonumber(status.elapsed) or 0, tonumber(status.duration) or 0, tostring(status.visible)))
+  end
+end
+
+function script.update(dt)
+  server.pollTimer = math.max(0, server.pollTimer - dt)
+  if ac.getSim().isOnlineRace then pollServer(false) end
+end
+
 function script.windowMain(_)
+  if ac.getSim().isOnlineRace then
+    drawServerWindow()
+    return
+  end
   local active = tonumber(read(STORAGE.active, 0)) == 1
   local status = tostring(read(STORAGE.status, active and 'loading' or 'inactive'))
   local message = tostring(read(STORAGE.message,

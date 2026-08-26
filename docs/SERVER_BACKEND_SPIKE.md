@@ -1,6 +1,6 @@
 # Localhost remote-car backend spike
 
-Status: compile-time prototype
+Status: runtime backend accepted; library/control vertical slice implemented
 
 Pinned AssettoServer: `6ce86addc1b1c70caf018a7b39f6d7bc9aa9493f` (`v0.0.55-pre35`)
 
@@ -14,17 +14,19 @@ AssettoServer already sends synthetic traffic through AC/CSP’s native remote-c
 
 `server-plugin/RandomLeadServerPlugin`:
 
-- loads the newest `latest.json` from the existing run library, or an explicit configured path;
+- loads all valid compatible JSON runs next to the configured initial run and deduplicates `latest.json`;
 - validates run schema v1/v2/v3 and the reserved leader car model;
 - announces an empty entry-list slot as `Recorded Leader`;
 - interpolates the run against server time;
 - emits regular AC `PositionUpdate` packets at the server tick rate;
 - includes recorded steering, four wheel speeds, RPM, gear, throttle and brake lights;
-- loops automatically with configurable start/reset delays for the first visual/contact test.
+- supports current, next, uniform random, restart and stop/hide through a playback state machine;
+- exposes a loopback-only HTTP API consumed by the resizeable CSP app window;
+- loops automatically with configurable start/reset delays and chooses a new run after each random-mode attempt.
 
 Run schema v3 records the physics transform required by AC network packets. Legacy v1/v2 recordings used CSP’s visual/model origin; the fixture reads `GRAPHICS_OFFSET` from the recorded car’s `car.ini` and the server plugin converts those frames back to physics origin during playback.
 
-It intentionally does not yet provide in-game commands or distribution packaging. The localhost fixture and launcher are automated; the first exit criterion is narrower: prove that the remote-car renderer fixes body height, wheel/suspension animation, smoke and audio, and that contact affects the chase car without moving the recorded leader.
+Body height, wheel/suspension animation, engine audio and the required one-way collision policy are confirmed in runtime: the chase car receives the impulse while the leader stays on its recorded path. Tyre smoke remains unresolved and is deferred. Distribution packaging and live library reload are not implemented yet.
 
 ## Build
 

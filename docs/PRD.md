@@ -366,7 +366,7 @@ Phase 0 обязан проверить боковой контакт, удар 
 
 ### Phase 2 — library и random
 
-Phase 2 начинается только после прохождения Phase 1.5 native playback fidelity spike.
+Phase 2 использует принятый localhost AssettoServer network backend. Первый vertical slice библиотеки и управления реализован 2026-08-26.
 
 - metadata index;
 - список/фильтры/enabled toggle;
@@ -374,6 +374,8 @@ Phase 2 начинается только после прохождения Phas
 - скрытие run ID;
 - базовый pack и enabled toggle без tags/rating;
 - обработка повреждённых/несовместимых файлов.
+
+Реализовано в первом проходе: отдельный JSON на каждый `Keep`, совместимый `latest.json`, загрузка/дедупликация библиотеки при старте сервера, команды current/next/random/restart/stop и localhost-only API с кнопками в in-game app. Остаются metadata index с enabled toggle, live reload и нагрузочный тест на 20 ранах.
 
 **Exit criteria:** минимум 20 ранов работают в одной сессии без restart и заметных пауз.
 

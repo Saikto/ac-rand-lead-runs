@@ -15,6 +15,12 @@ public sealed class RandomLeadServerConfiguration
     [YamlMember(Description = "Absolute latest.json path. Empty selects the newest run in the standard Documents folder.")]
     public string RunFile { get; init; } = "";
 
+    [YamlMember(Description = "Directory containing compatible run JSON files. Empty uses the RunFile directory.")]
+    public string RunDirectory { get; init; } = "";
+
+    [YamlMember(Description = "Start the current run automatically when the first chase client becomes ready.")]
+    public bool AutoStart { get; init; } = true;
+
     [YamlMember(Description = "Seconds to wait after a player is ready before playback starts.")]
     public double StartDelaySeconds { get; init; } = 5;
 

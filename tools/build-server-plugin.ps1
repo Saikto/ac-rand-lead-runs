@@ -21,3 +21,6 @@ if ($actualCommit -ne $pinnedCommit) {
 }
 
 dotnet build $project -c $Configuration -p:AssettoServerSource=$AssettoServerSource
+if ($LASTEXITCODE -ne 0) {
+    throw "Plugin build failed with exit code $LASTEXITCODE"
+}

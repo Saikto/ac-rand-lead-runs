@@ -4,7 +4,7 @@ Status: accepted runtime backend
 
 Pinned AssettoServer: `6ce86addc1b1c70caf018a7b39f6d7bc9aa9493f` (`v0.0.55-pre35`).
 
-`RandomLeadServerPlugin` загружает совместимую библиотеку, управляет playback state и публикует synthetic leader через обычные Assetto Corsa network position packets. Так используется нативный remote-car renderer вместо попытки анимировать или физически телепортировать вторую машину из Lua.
+`RandomLeadServerPlugin` загружает совместимую библиотеку, управляет playback state и публикует synthetic leader через CSP Custom Update position packets с fallback на обычный Assetto Corsa position packet. Это повторяет transport routing AssettoServer AI и использует нативный remote-car renderer вместо попытки анимировать или физически телепортировать вторую машину из Lua.
 
 ## Подтверждено
 

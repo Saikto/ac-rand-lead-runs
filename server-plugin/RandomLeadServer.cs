@@ -40,6 +40,7 @@ public sealed class RandomLeadServer : IHostedService
     private float _targetBodySpeed;
     private readonly float[] _targetWheelSpeed = new float[4];
     private readonly float[] _sentWheelSpeed = new float[4];
+    private string _transport = "not_sending";
 
     public RandomLeadServer(RandomLeadServerConfiguration configuration, ACServer server,
         EntryCarManager entryCarManager, SessionManager sessionManager)
@@ -129,7 +130,8 @@ public sealed class RandomLeadServer : IHostedService
                 LeaderSessionId = _leader?.SessionId ?? _configuration.LeaderSessionId,
                 TargetBodySpeed = _targetBodySpeed,
                 TargetWheelSpeed = (float[])_targetWheelSpeed.Clone(),
-                SentWheelSpeed = (float[])_sentWheelSpeed.Clone()
+                SentWheelSpeed = (float[])_sentWheelSpeed.Clone(),
+                Transport = _transport
             };
         }
     }
@@ -280,6 +282,9 @@ public sealed class RandomLeadServer : IHostedService
             if (car.SessionId == _leader!.SessionId || car.Client is not { HasSentFirstUpdate: true } client
                 || !_announcedClients.Add(car.SessionId)) continue;
             client.SendPacket(new CarConnected { SessionId = _leader.SessionId, Name = "Recorded Leader", Nation = "" });
+            _transport = client.SupportsCSPCustomUpdate ? "csp_custom_update" : "legacy_position_update";
+            Log.Information("Recorded leader announced to client {SessionId}; transport {Transport}",
+                client.SessionId, _transport);
             _visible = true;
         }
     }
@@ -293,6 +298,7 @@ public sealed class RandomLeadServer : IHostedService
         _playbackStartMs = -1;
         _waitingBetweenRuns = false;
         _cursor = 0;
+        _transport = "not_sending";
     }
 
     private void SendFrame(double[] a, double[] b, float alpha, long now)
@@ -336,8 +342,25 @@ public sealed class RandomLeadServer : IHostedService
         {
             if (target.SessionId == _leader.SessionId || target.Client is not { HasSentFirstUpdate: true } client
                 || !_leader.GetPositionUpdateForCar(target, out var packet)) continue;
-            client.SendPacketUdp(in packet);
+            if (client.SupportsCSPCustomUpdate)
+            {
+                SendCspCustomUpdate(client, in packet);
+                _transport = "csp_custom_update";
+            }
+            else
+            {
+                client.SendPacketUdp(in packet);
+                _transport = "legacy_position_update";
+            }
         }
+    }
+
+    private static void SendCspCustomUpdate(ACTcpClient client, in PositionUpdateOut update)
+    {
+        Span<PositionUpdateOut> updates = stackalloc PositionUpdateOut[1];
+        updates[0] = update;
+        var packet = new CSPPositionUpdate(updates);
+        client.SendPacketUdp(in packet);
     }
 
     private IReadOnlyList<RecordedRun> LoadLibrary(string initialPath, RecordedRun initialRun)

@@ -236,6 +236,7 @@ local function visualDiagnosticsText()
   local sample = visualDiagnostics.latest
   if sample == nil then return 'No remote-car sample yet.' end
   return string.format(
+    'Transport: %s\n' ..
     'Body target/remote: %.2f / %.2f m/s\n' ..
     'Rear wheel recorded: %.1f / %.1f rad/s\n' ..
     'Rear wheel packet: %.1f / %.1f rad/s\n' ..
@@ -245,7 +246,7 @@ local function visualDiagnosticsText()
     'Suspension current FL/FR/RL/RR: %.1f / %.1f / %.1f / %.1f mm\n' ..
     'Suspension range FL/FR/RL/RR: %.1f / %.1f / %.1f / %.1f mm\n' ..
     'Log: %s%s',
-    sample.targetBody, sample.remoteBody,
+    tostring(server.status.transport or 'unknown'), sample.targetBody, sample.remoteBody,
     sample.target[3], sample.target[4], sample.sent[3], sample.sent[4],
     sample.angular[3], sample.angular[4], sample.speedDifference[3], sample.speedDifference[4],
     sample.slipRatio[3], sample.slipRatio[4], sample.ndSlip[3], sample.ndSlip[4],

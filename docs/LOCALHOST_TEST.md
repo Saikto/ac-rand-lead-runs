@@ -76,6 +76,8 @@ Launcher автоматически:
 - значение, восстановленное CSP у удалённой машины;
 - вычисленные CSP `speedDifference`, `slipRatio`, `nSlip` и ход подвески.
 
+Строка `Transport` должна показывать `csp_custom_update`. Это тот же CSP transport, который AssettoServer использует для своих AI cars. `legacy_position_update` означает, что подключённый клиент не объявил поддержку Custom Update.
+
 После одной полной попытки нажми `Copy visual diagnostics` либо просто сообщи, что тест завершён: CSV сохраняется автоматически.
 
 ## 5. Добавление ранов

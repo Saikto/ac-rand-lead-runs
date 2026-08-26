@@ -41,6 +41,7 @@
           <div><h2>Choose the lead library</h2><p>Runs are grouped by their recorded track, layout and leader car.</p></div>
           <div id="runCount" class="count">0 runs</div>
         </div>
+        <label class="library-search"><span>FILTER RUNS</span><input id="runSearch" type="search" placeholder="Track, leader car or run ID…" autocomplete="off"></label>
         <div id="runGrid" class="run-grid"></div>
       </section>
 
@@ -52,8 +53,8 @@
           <article class="panel wide">
             <div class="panel-title"><span>Driver slot</span><small>CHASE CAR</small></div>
             <div class="field-grid">
-              <label class="field span-2"><span>Player car</span><select id="playerCar"></select></label>
-              <label class="field span-2"><span>Skin</span><select id="playerSkin"></select></label>
+              <label class="field span-2"><span>Player car</span><input id="playerCarSearch" class="select-search" type="search" placeholder="Filter cars…" autocomplete="off"><select id="playerCar"></select></label>
+              <label class="field span-2"><span>Skin</span><input id="playerSkinSearch" class="select-search" type="search" placeholder="Filter skins…" autocomplete="off"><select id="playerSkin"></select></label>
               <label class="field span-2"><span>Server name</span><input id="serverName" type="text" maxlength="80"></label>
             </div>
           </article>
@@ -61,10 +62,34 @@
           <article class="panel">
             <div class="panel-title"><span>Conditions</span><small>ENVIRONMENT</small></div>
             <div class="field-grid">
-              <label class="field span-2"><span>Weather</span><select id="weather"></select></label>
+              <label class="field span-2"><span>Weather</span><input id="weatherSearch" class="select-search" type="search" placeholder="Filter weather…" autocomplete="off"><select id="weather"></select></label>
               <label class="field"><span>Ambient °C</span><input id="ambientTemperature" type="number" min="-20" max="50"></label>
-              <label class="field"><span>Road °C</span><input id="roadTemperature" type="number" min="-20" max="80"></label>
-              <label class="field span-2"><span>Sun angle</span><input id="sunAngle" type="range" min="-80" max="80" step="1"><output id="sunAngleValue"></output></label>
+              <label class="field"><span>Road heating over ambient °C</span><input id="roadTemperatureDelta" type="number" min="-20" max="40"></label>
+              <label class="field"><span>Time of day</span><input id="timeOfDay" type="time" min="08:00" max="18:00"></label>
+              <label class="field"><span>Time progression</span><select id="timeMultiplier"><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="24">24×</option><option value="60">60×</option></select></label>
+              <label class="field"><span>Wind speed, km/h</span><input id="windSpeed" type="number" min="0" max="100"></label>
+              <label class="field"><span>Wind direction, °</span><input id="windDirection" type="number" min="0" max="359"></label>
+              <label class="field span-2"><span>Track grip, %</span><input id="trackGrip" type="number" min="80" max="100"></label>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-title"><span>Driving assists</span><small>SERVER RULES</small></div>
+            <div class="field-grid">
+              <label class="field"><span>Traction control</span><select id="tractionControlAllowed"><option value="0">Not allowed</option><option value="1">Factory</option><option value="2">Forced on</option></select></label>
+              <label class="field"><span>ABS</span><select id="absAllowed"><option value="0">Not allowed</option><option value="1">Factory</option><option value="2">Forced on</option></select></label>
+              <label class="toggle span-2"><input id="stabilityAllowed" type="checkbox"><span></span><div><strong>Allow stability control</strong></div></label>
+              <label class="toggle span-2"><input id="autoClutchAllowed" type="checkbox"><span></span><div><strong>Allow auto clutch</strong></div></label>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-title"><span>Simulation rates</span><small>SESSION RULES</small></div>
+            <div class="field-grid">
+              <label class="field"><span>Damage, %</span><input id="damageMultiplier" type="number" min="0" max="200"></label>
+              <label class="field"><span>Fuel rate, %</span><input id="fuelRate" type="number" min="0" max="200"></label>
+              <label class="field"><span>Tyre wear, %</span><input id="tyreWearRate" type="number" min="0" max="200"></label>
+              <label class="toggle"><input id="tyreBlanketsAllowed" type="checkbox"><span></span><div><strong>Tyre blankets</strong></div></label>
             </div>
           </article>
 

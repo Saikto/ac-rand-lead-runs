@@ -153,16 +153,36 @@ if (-not (Test-Path -LiteralPath (Join-Path $AssettoCorsaPath "content\weather\$
     throw "Selected weather is not installed: $weather"
 }
 $ambientTemperature = if ($launcherSettings) { [int]$launcherSettings.ambientTemperature } else { 18 }
-$roadTemperature = if ($launcherSettings) { [int]$launcherSettings.roadTemperature } else { 24 }
-$sunAngle = if ($launcherSettings) { [double]$launcherSettings.sunAngle } else { 6 }
+$roadTemperatureDelta = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'roadTemperatureDelta') { [int]$launcherSettings.roadTemperatureDelta } else { 6 }
+$timeOfDay = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'timeOfDay') { [string]$launcherSettings.timeOfDay } else { '13:00' }
+$timeMultiplier = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'timeMultiplier') { [double]$launcherSettings.timeMultiplier } else { 1 }
+$windSpeed = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'windSpeed') { [int]$launcherSettings.windSpeed } else { 0 }
+$windDirection = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'windDirection') { [int]$launcherSettings.windDirection } else { 0 }
+$trackGrip = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'trackGrip') { [int]$launcherSettings.trackGrip } else { 100 }
+$tractionControlAllowed = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'tractionControlAllowed') { [int]$launcherSettings.tractionControlAllowed } else { 1 }
+$absAllowed = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'absAllowed') { [int]$launcherSettings.absAllowed } else { 1 }
+$stabilityAllowed = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'stabilityAllowed' -and [bool]$launcherSettings.stabilityAllowed) { 1 } else { 0 }
+$autoClutchAllowed = if (-not $launcherSettings -or -not ($launcherSettings.PSObject.Properties.Name -contains 'autoClutchAllowed') -or [bool]$launcherSettings.autoClutchAllowed) { 1 } else { 0 }
+$damageMultiplier = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'damageMultiplier') { [int]$launcherSettings.damageMultiplier } else { 0 }
+$fuelRate = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'fuelRate') { [int]$launcherSettings.fuelRate } else { 0 }
+$tyreWearRate = if ($launcherSettings -and $launcherSettings.PSObject.Properties.Name -contains 'tyreWearRate') { [int]$launcherSettings.tyreWearRate } else { 0 }
+$tyreBlanketsAllowed = if (-not $launcherSettings -or -not ($launcherSettings.PSObject.Properties.Name -contains 'tyreBlanketsAllowed') -or [bool]$launcherSettings.tyreBlanketsAllowed) { 1 } else { 0 }
+$parsedTime = [DateTime]::ParseExact($timeOfDay, 'HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
+$timeSeconds = $parsedTime.TimeOfDay.TotalSeconds
+$sunAngle = 16.0 * ($timeSeconds - 46800.0) / 3600.0
 $startDelaySeconds = if ($launcherSettings) { [double]$launcherSettings.startDelaySeconds } else { 5 }
 $loopDelaySeconds = if ($launcherSettings) { [double]$launcherSettings.loopDelaySeconds } else { 3 }
 $loopEnabled = if ($launcherSettings) { [bool]$launcherSettings.loop } else { $true }
 $tcpPort = if ($launcherSettings) { [int]$launcherSettings.tcpPort } else { 9600 }
 $httpPort = if ($launcherSettings) { [int]$launcherSettings.httpPort } else { 8081 }
 if ($ambientTemperature -lt -20 -or $ambientTemperature -gt 50) { throw 'Ambient temperature must be between -20 and 50 C' }
-if ($roadTemperature -lt -20 -or $roadTemperature -gt 80) { throw 'Road temperature must be between -20 and 80 C' }
-if ($sunAngle -lt -80 -or $sunAngle -gt 80) { throw 'Sun angle must be between -80 and 80 degrees' }
+if ($roadTemperatureDelta -lt -20 -or $roadTemperatureDelta -gt 40 -or ($ambientTemperature + $roadTemperatureDelta) -lt -20 -or ($ambientTemperature + $roadTemperatureDelta) -gt 80) { throw 'Road temperature delta or resulting temperature is outside the supported range' }
+if ($timeSeconds -lt 28800 -or $timeSeconds -gt 64800) { throw 'Time of day must be between 08:00 and 18:00' }
+if ($timeMultiplier -lt 1 -or $timeMultiplier -gt 60) { throw 'Time multiplier must be between 1 and 60' }
+if ($windSpeed -lt 0 -or $windSpeed -gt 100 -or $windDirection -lt 0 -or $windDirection -gt 359) { throw 'Wind setting is outside the supported range' }
+if ($trackGrip -lt 80 -or $trackGrip -gt 100) { throw 'Track grip must be between 80 and 100 percent' }
+if ($tractionControlAllowed -notin @(0, 1, 2) -or $absAllowed -notin @(0, 1, 2)) { throw 'TC and ABS values must be 0, 1, or 2' }
+if ($damageMultiplier -lt 0 -or $damageMultiplier -gt 200 -or $fuelRate -lt 0 -or $fuelRate -gt 200 -or $tyreWearRate -lt 0 -or $tyreWearRate -gt 200) { throw 'Damage, fuel, and tyre rates must be between 0 and 200 percent' }
 if ($startDelaySeconds -lt 0 -or $startDelaySeconds -gt 60 -or $loopDelaySeconds -lt 0 -or $loopDelaySeconds -gt 60) {
     throw 'Playback delays must be between 0 and 60 seconds'
 }
@@ -202,35 +222,35 @@ HTTP_PORT=$httpPort
 MAX_CLIENTS=2
 CLIENT_SEND_INTERVAL_HZ=50
 LOOP_MODE=1
-FUEL_RATE=0
-DAMAGE_MULTIPLIER=0
-TYRE_WEAR_RATE=0
+FUEL_RATE=$fuelRate
+DAMAGE_MULTIPLIER=$damageMultiplier
+TYRE_WEAR_RATE=$tyreWearRate
 ALLOWED_TYRES_OUT=-1
-ABS_ALLOWED=1
-TC_ALLOWED=1
-STABILITY_ALLOWED=0
-AUTOCLUTCH_ALLOWED=1
-TYRE_BLANKETS_ALLOWED=1
+ABS_ALLOWED=$absAllowed
+TC_ALLOWED=$tractionControlAllowed
+STABILITY_ALLOWED=$stabilityAllowed
+AUTOCLUTCH_ALLOWED=$autoClutchAllowed
+TYRE_BLANKETS_ALLOWED=$tyreBlanketsAllowed
 FORCE_VIRTUAL_MIRROR=0
 REGISTER_TO_LOBBY=0
-TIME_OF_DAY_MULT=1
+TIME_OF_DAY_MULT=$($timeMultiplier.ToString([System.Globalization.CultureInfo]::InvariantCulture))
 WELCOME_MESSAGE=
 
 [PRACTICE]
 INFINITE=1
 
 [DYNAMIC_TRACK]
-SESSION_START=100
+SESSION_START=$trackGrip
 
 [WEATHER_0]
 GRAPHICS=$weather
 BASE_TEMPERATURE_AMBIENT=$ambientTemperature
-BASE_TEMPERATURE_ROAD=$roadTemperature
+BASE_TEMPERATURE_ROAD=$roadTemperatureDelta
 VARIATION_AMBIENT=0
 VARIATION_ROAD=0
-WIND_BASE_SPEED_MIN=0
-WIND_BASE_SPEED_MAX=0
-WIND_BASE_DIRECTION=0
+WIND_BASE_SPEED_MIN=$windSpeed
+WIND_BASE_SPEED_MAX=$windSpeed
+WIND_BASE_DIRECTION=$windDirection
 WIND_VARIATION_DIRECTION=0
 "@
 
@@ -298,8 +318,14 @@ $runtimeInfo = [ordered]@{
     playerSkin = $playerSkin
     weather = $weather
     ambientTemperature = $ambientTemperature
-    roadTemperature = $roadTemperature
+    roadTemperatureDelta = $roadTemperatureDelta
+    roadTemperature = $ambientTemperature + $roadTemperatureDelta
+    timeOfDay = $timeOfDay
     sunAngle = $sunAngle
+    timeMultiplier = $timeMultiplier
+    windSpeed = $windSpeed
+    windDirection = $windDirection
+    trackGrip = $trackGrip
     legacyGraphicsOffset = $graphicsOffset
     address = "127.0.0.1:$tcpPort"
     httpPort = $httpPort

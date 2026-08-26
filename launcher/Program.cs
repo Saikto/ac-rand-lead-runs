@@ -310,10 +310,18 @@ public sealed class LauncherService : IDisposable
             throw new InvalidOperationException("Select an installed skin for the player car");
         if (!Directory.Exists(Path.Combine(_assettoCorsaRoot, "content", "weather", settings.Weather ?? "")))
             throw new InvalidOperationException("Select an installed weather preset");
-        if (settings.AmbientTemperature is < -20 or > 50 || settings.RoadTemperature is < -20 or > 80)
+        if (settings.AmbientTemperature is < -20 or > 50 || settings.RoadTemperatureDelta is < -20 or > 40 ||
+            settings.AmbientTemperature + settings.RoadTemperatureDelta is < -20 or > 80)
             throw new InvalidOperationException("Temperature is outside the supported range");
-        if (settings.SunAngle is < -80 or > 80 || settings.StartDelaySeconds is < 0 or > 60 || settings.LoopDelaySeconds is < 0 or > 60)
-            throw new InvalidOperationException("Sun angle or playback delay is outside the supported range");
+        if (!TimeOnly.TryParseExact(settings.TimeOfDay, "HH:mm", out TimeOnly time) || time < new TimeOnly(8, 0) || time > new TimeOnly(18, 0))
+            throw new InvalidOperationException("Time of day must be between 08:00 and 18:00");
+        if (settings.TimeMultiplier is < 1 or > 60 || settings.StartDelaySeconds is < 0 or > 60 || settings.LoopDelaySeconds is < 0 or > 60)
+            throw new InvalidOperationException("Time multiplier or playback delay is outside the supported range");
+        if (settings.WindSpeed is < 0 or > 100 || settings.WindDirection is < 0 or > 359 || settings.TrackGrip is < 80 or > 100)
+            throw new InvalidOperationException("Wind or track grip is outside the supported range");
+        if (settings.TractionControlAllowed is < 0 or > 2 || settings.AbsAllowed is < 0 or > 2 ||
+            settings.DamageMultiplier is < 0 or > 200 || settings.FuelRate is < 0 or > 200 || settings.TyreWearRate is < 0 or > 200)
+            throw new InvalidOperationException("Assist or consumption setting is outside the supported range");
         if (settings.TcpPort is < 1024 or > 65535 || settings.HttpPort is < 1024 or > 65535 || settings.TcpPort == settings.HttpPort)
             throw new InvalidOperationException("TCP and HTTP ports must be distinct values between 1024 and 65535");
     }
@@ -361,8 +369,20 @@ public sealed class LauncherSettings
     public string PlayerSkin { get; set; } = "";
     public string Weather { get; set; } = "3_clear";
     public int AmbientTemperature { get; set; } = 18;
-    public int RoadTemperature { get; set; } = 24;
-    public double SunAngle { get; set; } = 6;
+    public int RoadTemperatureDelta { get; set; } = 6;
+    public string TimeOfDay { get; set; } = "13:00";
+    public double TimeMultiplier { get; set; } = 1;
+    public int WindSpeed { get; set; } = 0;
+    public int WindDirection { get; set; } = 0;
+    public int TrackGrip { get; set; } = 100;
+    public int TractionControlAllowed { get; set; } = 1;
+    public int AbsAllowed { get; set; } = 1;
+    public bool StabilityAllowed { get; set; } = false;
+    public bool AutoClutchAllowed { get; set; } = true;
+    public int DamageMultiplier { get; set; } = 0;
+    public int FuelRate { get; set; } = 0;
+    public int TyreWearRate { get; set; } = 0;
+    public bool TyreBlanketsAllowed { get; set; } = true;
     public double StartDelaySeconds { get; set; } = 5;
     public bool Loop { get; set; } = true;
     public double LoopDelaySeconds { get; set; } = 3;

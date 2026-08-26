@@ -1,7 +1,8 @@
 const state = { catalog: null, settings: null, server: null };
 const $ = id => document.getElementById(id);
-const fields = ['serverName', 'playerCar', 'playerSkin', 'weather', 'ambientTemperature', 'roadTemperature',
-  'sunAngle', 'startDelaySeconds', 'loopDelaySeconds', 'tcpPort', 'httpPort'];
+const fields = ['serverName', 'playerCar', 'playerSkin', 'weather', 'ambientTemperature', 'roadTemperatureDelta',
+  'timeOfDay', 'timeMultiplier', 'windSpeed', 'windDirection', 'trackGrip', 'tractionControlAllowed', 'absAllowed',
+  'damageMultiplier', 'fuelRate', 'tyreWearRate', 'startDelaySeconds', 'loopDelaySeconds', 'tcpPort', 'httpPort'];
 
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -25,11 +26,19 @@ function option(select, value, label) {
   select.appendChild(element);
 }
 
+function matchesQuery(text, query) {
+  const haystack = text.toLowerCase();
+  return query.trim().toLowerCase().split(/\s+/).filter(Boolean).every(token => haystack.includes(token));
+}
+
 function renderRunLibrary() {
   const grid = $('runGrid');
   grid.innerHTML = '';
-  $('runCount').textContent = `${state.catalog.runs.length} run${state.catalog.runs.length === 1 ? '' : 's'}`;
-  state.catalog.runs.forEach((run, index) => {
+  const query = $('runSearch').value;
+  const runs = state.catalog.runs.filter(run =>
+    matchesQuery([run.id, run.trackName, run.track, run.layout, run.carName, run.car].join(' '), query));
+  $('runCount').textContent = query ? `${runs.length} / ${state.catalog.runs.length} runs` : `${runs.length} run${runs.length === 1 ? '' : 's'}`;
+  runs.forEach((run, index) => {
     const card = document.createElement('button');
     card.className = `run-card${run.path === state.settings.runFile ? ' selected' : ''}`;
     const ordinal = document.createElement('span'); ordinal.className = 'index'; ordinal.textContent = `RUN ${String(index + 1).padStart(2, '0')}`;
@@ -42,33 +51,47 @@ function renderRunLibrary() {
     card.addEventListener('click', () => { state.settings.runFile = run.path; renderRunLibrary(); renderSummary(); });
     grid.appendChild(card);
   });
-  if (!state.catalog.runs.length) grid.textContent = 'No valid recordings found.';
+  if (!runs.length) grid.textContent = state.catalog.runs.length ? 'No runs match this filter.' : 'No valid recordings found.';
 }
 
-function renderCars() {
+function renderCars(filter = '') {
   const select = $('playerCar');
+  const selected = state.settings.playerCar;
   select.innerHTML = '';
-  state.catalog.cars.forEach(car => option(select, car.id, `${car.name}  ·  ${car.id}`));
-  select.value = state.settings.playerCar;
+  const query = filter.trim();
+  state.catalog.cars.filter(car => matchesQuery(`${car.name} ${car.id}`, query))
+    .forEach(car => option(select, car.id, `${car.name}  ·  ${car.id}`));
+  if ([...select.options].some(item => item.value.toLowerCase() === selected.toLowerCase())) select.value = selected;
+  if (!select.value && select.options.length) select.selectedIndex = 0;
   renderSkins();
 }
 
-function renderSkins() {
+function renderSkins(filter = '') {
   const car = state.catalog.cars.find(item => item.id === $('playerCar').value);
   const select = $('playerSkin');
+  const selected = state.settings.playerSkin;
   select.innerHTML = '';
-  (car?.skins || []).forEach(skin => option(select, skin, skin));
-  if (car?.skins.includes(state.settings.playerSkin)) select.value = state.settings.playerSkin;
-  else state.settings.playerSkin = select.value;
+  const query = filter.trim();
+  (car?.skins || []).filter(skin => matchesQuery(skin, query)).forEach(skin => option(select, skin, skin));
+  if ([...select.options].some(item => item.value.toLowerCase() === selected.toLowerCase())) select.value = selected;
+  if (!select.value && select.options.length) select.selectedIndex = 0;
+}
+
+function renderWeather(filter = '') {
+  const select = $('weather');
+  const selected = state.settings.weather;
+  select.innerHTML = '';
+  const query = filter.trim();
+  state.catalog.weather.filter(weather => matchesQuery(weather, query)).forEach(weather => option(select, weather, weather));
+  if ([...select.options].some(item => item.value.toLowerCase() === selected.toLowerCase())) select.value = selected;
+  if (!select.value && select.options.length) select.selectedIndex = 0;
 }
 
 function fillForm() {
   renderCars();
-  $('weather').innerHTML = '';
-  state.catalog.weather.forEach(weather => option($('weather'), weather, weather));
+  renderWeather();
   fields.forEach(id => { if ($(id) && state.settings[id] !== undefined) $(id).value = state.settings[id]; });
-  $('loop').checked = state.settings.loop;
-  $('sunAngleValue').textContent = `${state.settings.sunAngle}°`;
+  ['loop', 'stabilityAllowed', 'autoClutchAllowed', 'tyreBlanketsAllowed'].forEach(id => $(id).checked = state.settings[id]);
 }
 
 function readForm() {
@@ -76,9 +99,11 @@ function readForm() {
   state.settings.playerCar = $('playerCar').value;
   state.settings.playerSkin = $('playerSkin').value;
   state.settings.weather = $('weather').value;
-  ['ambientTemperature', 'roadTemperature', 'tcpPort', 'httpPort'].forEach(id => state.settings[id] = Number.parseInt($(id).value, 10));
-  ['sunAngle', 'startDelaySeconds', 'loopDelaySeconds'].forEach(id => state.settings[id] = Number.parseFloat($(id).value));
-  state.settings.loop = $('loop').checked;
+  ['ambientTemperature', 'roadTemperatureDelta', 'windSpeed', 'windDirection', 'trackGrip', 'tractionControlAllowed',
+    'absAllowed', 'damageMultiplier', 'fuelRate', 'tyreWearRate', 'tcpPort', 'httpPort'].forEach(id => state.settings[id] = Number.parseInt($(id).value, 10));
+  ['timeMultiplier', 'startDelaySeconds', 'loopDelaySeconds'].forEach(id => state.settings[id] = Number.parseFloat($(id).value));
+  state.settings.timeOfDay = $('timeOfDay').value;
+  ['loop', 'stabilityAllowed', 'autoClutchAllowed', 'tyreBlanketsAllowed'].forEach(id => state.settings[id] = $(id).checked);
   renderSummary();
   return state.settings;
 }
@@ -93,7 +118,8 @@ function renderSummary() {
   $('launchTrack').textContent = run?.trackName || 'Select a run';
   $('launchRun').textContent = run ? `${run.id} · ${run.duration.toFixed(1)} s · leader ${run.carName}` : 'The selected run will appear here.';
   $('summaryCar').textContent = `${car?.name || state.settings.playerCar} · ${state.settings.playerSkin}`;
-  $('summaryWeather').textContent = `${state.settings.weather} · ${state.settings.ambientTemperature}° / ${state.settings.roadTemperature}°`;
+  const road = state.settings.ambientTemperature + state.settings.roadTemperatureDelta;
+  $('summaryWeather').textContent = `${state.settings.weather} · ${state.settings.timeOfDay} · air ${state.settings.ambientTemperature}° · road ${road}°`;
   $('summaryPlayback').textContent = state.settings.loop ? `Loop · ${state.settings.startDelaySeconds}s start · ${state.settings.loopDelaySeconds}s repeat` : 'Single attempt';
   $('summaryAddress').textContent = `127.0.0.1:${state.settings.tcpPort}`;
   $('sidebarAddress').textContent = `127.0.0.1:${state.settings.tcpPort}`;
@@ -154,9 +180,12 @@ async function init() {
 document.querySelectorAll('.nav').forEach(nav => nav.addEventListener('click', () => switchPage(nav.dataset.page)));
 $('playerCar').addEventListener('change', () => { state.settings.playerCar = $('playerCar').value; state.settings.playerSkin = ''; renderSkins(); readForm(); });
 $('playerSkin').addEventListener('change', readForm);
-$('sunAngle').addEventListener('input', () => { $('sunAngleValue').textContent = `${$('sunAngle').value}°`; readForm(); });
-fields.filter(id => !['playerCar', 'playerSkin', 'sunAngle'].includes(id)).forEach(id => $(id).addEventListener('change', readForm));
-$('loop').addEventListener('change', readForm);
+$('runSearch').addEventListener('input', renderRunLibrary);
+$('playerCarSearch').addEventListener('input', event => renderCars(event.target.value));
+$('playerSkinSearch').addEventListener('input', event => renderSkins(event.target.value));
+$('weatherSearch').addEventListener('input', event => renderWeather(event.target.value));
+fields.filter(id => !['playerCar', 'playerSkin'].includes(id)).forEach(id => $(id).addEventListener('change', readForm));
+['loop', 'stabilityAllowed', 'autoClutchAllowed', 'tyreBlanketsAllowed'].forEach(id => $(id).addEventListener('change', readForm));
 $('saveButton').addEventListener('click', () => save().catch(error => toast(error.message, true)));
 $('launchButton').addEventListener('click', launch);
 $('topLaunchButton').addEventListener('click', launch);

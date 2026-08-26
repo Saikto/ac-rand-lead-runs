@@ -12,6 +12,11 @@ function Resolve-FullPath([string]$Path) {
     return [System.IO.Path]::GetFullPath($Path)
 }
 
+function Write-Utf8NoBom([string]$Path, [string]$Value) {
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Value, $encoding)
+}
+
 function Assert-SafeContentId([string]$Value, [string]$Label) {
     if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^[A-Za-z0-9_.-]+$') {
         throw "Invalid $Label in run metadata: '$Value'"
@@ -179,10 +184,10 @@ Loop: true
 LoopDelaySeconds: 3
 "@
 
-Set-Content -LiteralPath (Join-Path $cfgPath 'server_cfg.ini') -Value $serverCfg -Encoding utf8NoBOM
-Set-Content -LiteralPath (Join-Path $cfgPath 'entry_list.ini') -Value $entryList -Encoding utf8NoBOM
-Set-Content -LiteralPath (Join-Path $cfgPath 'extra_cfg.yml') -Value $extraCfg -Encoding utf8NoBOM
-Set-Content -LiteralPath (Join-Path $cfgPath 'plugin_random_lead_server_cfg.yml') -Value $pluginCfg -Encoding utf8NoBOM
+Write-Utf8NoBom (Join-Path $cfgPath 'server_cfg.ini') $serverCfg
+Write-Utf8NoBom (Join-Path $cfgPath 'entry_list.ini') $entryList
+Write-Utf8NoBom (Join-Path $cfgPath 'extra_cfg.yml') $extraCfg
+Write-Utf8NoBom (Join-Path $cfgPath 'plugin_random_lead_server_cfg.yml') $pluginCfg
 
 $runtimeInfo = [ordered]@{
     generatedAt = [DateTime]::UtcNow.ToString('o')
@@ -196,7 +201,7 @@ $runtimeInfo = [ordered]@{
     address = '127.0.0.1:9600'
     logs = (Join-Path $RuntimePath 'logs')
 }
-$runtimeInfo | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $RuntimePath 'runtime-info.json') -Encoding utf8NoBOM
+Write-Utf8NoBom (Join-Path $RuntimePath 'runtime-info.json') ($runtimeInfo | ConvertTo-Json)
 
 Write-Output "Localhost fixture prepared: $RuntimePath"
 Write-Output "Run: $($run.id) ($([Math]::Round([double]$run.duration, 2)) s)"

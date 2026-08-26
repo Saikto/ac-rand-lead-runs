@@ -26,7 +26,7 @@ Tyre smoke отсутствует и отложен.
 - `POST /api/random-lead/command/restart`;
 - `POST /api/random-lead/command/stop`.
 
-API принимает команды только с loopback-интерфейса. CSP app опрашивает status дважды в секунду; random selection скрыт до завершения попытки.
+API принимает команды только с loopback-интерфейса. CSP app опрашивает status до 10 раз в секунду во время диагностического playback; random selection скрыт до завершения попытки.
 
 ## Build и fixture
 

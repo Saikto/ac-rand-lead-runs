@@ -102,9 +102,22 @@ New Mode записывает player car с частотой 50 Hz: physics tran
 
 ## 7. Следующие этапы
 
-1. Ручная проверка исправленного recorder review flow и очищенного UI.
-2. Запись нескольких ранов и проверка next/random.
-3. Metadata index, enabled toggle и live library reload.
-4. Launcher/packaging flow без ручного PowerShell-окна.
-5. Нагрузочный тест библиотеки из 20+ ранов.
-6. Polishing: countdown presentation, trim и debug overlay актуального backend-а.
+1. Диагностировать remote wheel/slip/suspension state и решить судьбу smoke/skid marks на основании измерений.
+2. Library UI: список ранов, enable/disable, delete с подтверждением, live reload и человекочитаемые названия.
+3. Start preparation: отдельные состояния `armed` и `countdown`, лидер ждёт на первой позиции, пользователь запускает отсчёт после построения chase car.
+4. Local launcher UI без PowerShell: выбор трассы/layout, разрешённых машин, погоды, температуры, времени, session и playback-настроек.
+5. Нагрузочный тест библиотеки из 20+ ранов и packaging.
+6. Polishing: trim, metadata, фильтры и компактный production status вместо диагностического блока.
+
+## 8. Launcher и будущие экраны
+
+Для первой версии launcher выбирается локальное browser UI, которое стартует вместе с небольшим launcher process. Это даёт полноценные dropdown/search controls и не привязывает проект к внутренним, нестабильным extension points Content Manager. Позже можно добавить CM preset/deeplink как удобную точку входа, не перенося в CM серверную логику.
+
+План экранов:
+
+1. `Library` — track/layout/car filters, список ранов, duration/date, enabled toggle, delete и rescan.
+2. `Session` — track/layout, player car и skin, дополнительные разрешённые машины, weather, ambient/road temperature, time, session duration, grip, loop/start delay и порты.
+3. `Launch` — проверка конфигурации, Start/Stop server, live log, статус портов и кнопка подключения через CM invite link.
+4. `In-game` — только подготовка попытки и управление playback; серверные настройки остаются в launcher, чтобы не перегружать окно во время езды.
+
+Нормальная подготовка старта означает двухшаговый flow: выбор рана ставит лидера неподвижно на первый кадр (`armed`), а отдельная кнопка `Start attempt` запускает видимый отсчёт `3–2–1–GO`. Так chase car может спокойно занять позицию. Для быстрых повторов будет опциональный auto-countdown; random run остаётся скрытым. Restart сначала возвращает лидера на старт, поэтому не начинается неожиданно, пока chase car ещё разворачивается.

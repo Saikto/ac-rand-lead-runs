@@ -37,6 +37,9 @@ public sealed class RandomLeadServer : IHostedService
     private string _mode = "current";
     private string? _lastCompletedRunId;
     private string _message = "Loading run library";
+    private float _targetBodySpeed;
+    private readonly float[] _targetWheelSpeed = new float[4];
+    private readonly float[] _sentWheelSpeed = new float[4];
 
     public RandomLeadServer(RandomLeadServerConfiguration configuration, ACServer server,
         EntryCarManager entryCarManager, SessionManager sessionManager)
@@ -122,7 +125,11 @@ public sealed class RandomLeadServer : IHostedService
                 LastCompletedRunId = _lastCompletedRunId,
                 Duration = _run?.Duration ?? 0,
                 Elapsed = Math.Min(elapsed, _run?.Duration ?? 0),
-                Visible = _visible
+                Visible = _visible,
+                LeaderSessionId = _leader?.SessionId ?? _configuration.LeaderSessionId,
+                TargetBodySpeed = _targetBodySpeed,
+                TargetWheelSpeed = (float[])_targetWheelSpeed.Clone(),
+                SentWheelSpeed = (float[])_sentWheelSpeed.Clone()
             };
         }
     }
@@ -301,6 +308,11 @@ public sealed class RandomLeadServer : IHostedService
         float brake = Lerp(a[Brake], b[Brake], alpha);
         int gear = alpha < 0.5f ? (int)a[Gear] : (int)b[Gear];
         float rpm = Lerp(a[Rpm], b[Rpm], alpha);
+        _targetBodySpeed = velocity.Length();
+        _targetWheelSpeed[0] = ReadWheel(a, b, WheelFl, alpha);
+        _targetWheelSpeed[1] = ReadWheel(a, b, WheelFr, alpha);
+        _targetWheelSpeed[2] = ReadWheel(a, b, WheelRl, alpha);
+        _targetWheelSpeed[3] = ReadWheel(a, b, WheelRr, alpha);
 
         var status = _leader!.Status;
         status.PakSequenceId = _sequence++;
@@ -308,10 +320,11 @@ public sealed class RandomLeadServer : IHostedService
         status.Position = position;
         status.Rotation = rotation;
         status.Velocity = velocity;
-        status.TyreAngularSpeed[0] = EncodeWheelSpeed(ReadWheel(a, b, WheelFl, alpha));
-        status.TyreAngularSpeed[1] = EncodeWheelSpeed(ReadWheel(a, b, WheelFr, alpha));
-        status.TyreAngularSpeed[2] = EncodeWheelSpeed(ReadWheel(a, b, WheelRl, alpha));
-        status.TyreAngularSpeed[3] = EncodeWheelSpeed(ReadWheel(a, b, WheelRr, alpha));
+        for (int i = 0; i < 4; i++)
+        {
+            status.TyreAngularSpeed[i] = EncodeWheelSpeed(_targetWheelSpeed[i]);
+            _sentWheelSpeed[i] = DecodeWheelSpeed(status.TyreAngularSpeed[i]);
+        }
         status.SteerAngle = EncodeSignedUnit(steer);
         status.WheelAngle = EncodeSignedUnit(steer);
         status.EngineRpm = (ushort)Math.Clamp(MathF.Round(rpm), 0, ushort.MaxValue);
@@ -414,6 +427,13 @@ public sealed class RandomLeadServer : IHostedService
     {
         float encoded = MathF.Round(MathF.Log10(MathF.Abs(angularSpeed) + 1) * 20) * MathF.Sign(angularSpeed);
         return (byte)Math.Clamp(encoded + 100, 0, 254);
+    }
+
+    private static float DecodeWheelSpeed(byte encoded)
+    {
+        float value = encoded - 100;
+        float sign = MathF.Sign(value);
+        return sign == 0 ? 0 : (MathF.Pow(10, MathF.Abs(value) / 20) - 1) * sign;
     }
 
     private static Vector3 ToNetworkRotation(Vector3 look, Vector3 up)

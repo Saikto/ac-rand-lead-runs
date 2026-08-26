@@ -384,11 +384,12 @@ end
 
 local function captureFrame(car, sampleTime)
   local steerLock = math.max(car.steerLock or 0, 1)
+  local physicsTransform = car.transform
   return {
     sampleTime,
-    car.position.x, car.position.y, car.position.z,
-    car.look.x, car.look.y, car.look.z,
-    car.up.x, car.up.y, car.up.z,
+    physicsTransform.position.x, physicsTransform.position.y, physicsTransform.position.z,
+    physicsTransform.look.x, physicsTransform.look.y, physicsTransform.look.z,
+    physicsTransform.up.x, physicsTransform.up.y, physicsTransform.up.z,
     car.velocity.x, car.velocity.y, car.velocity.z,
     math.clamp(car.steer / steerLock, -1, 1),
     car.gas, car.brake, car.clutch, car.handbrake,

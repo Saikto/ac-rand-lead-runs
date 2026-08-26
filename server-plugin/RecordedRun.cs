@@ -27,7 +27,7 @@ public sealed class RecordedRun
 
     public void Validate()
     {
-        if (Version is not (1 or 2)) throw new InvalidDataException($"Unsupported run version: {Version}");
+        if (Version is not (1 or 2 or 3)) throw new InvalidDataException($"Unsupported run version: {Version}");
         if (Frames.Length < 2) throw new InvalidDataException("Run must contain at least two frames");
         if (Duration <= 0) throw new InvalidDataException("Run duration must be positive");
         if (Frames.Any(frame => frame.Length < 20)) throw new InvalidDataException("Run contains a truncated frame");

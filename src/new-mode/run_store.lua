@@ -1,6 +1,6 @@
 local M = {}
 
-local FORMAT_VERSION = 2
+local FORMAT_VERSION = 3
 
 local function valueOrDash(value)
   if value == nil or value == '' then
@@ -51,7 +51,7 @@ function M.validate(run)
   if type(run) ~= 'table' then
     return false, 'Run root is not an object'
   end
-  if run.version ~= 1 and run.version ~= FORMAT_VERSION then
+  if run.version ~= 1 and run.version ~= 2 and run.version ~= FORMAT_VERSION then
     return false, 'Unsupported run version: ' .. tostring(run.version)
   end
 

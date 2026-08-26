@@ -15,12 +15,14 @@ AssettoServer already sends synthetic traffic through AC/CSP’s native remote-c
 `server-plugin/RandomLeadServerPlugin`:
 
 - loads the newest `latest.json` from the existing run library, or an explicit configured path;
-- validates run schema v1/v2 and the reserved leader car model;
+- validates run schema v1/v2/v3 and the reserved leader car model;
 - announces an empty entry-list slot as `Recorded Leader`;
 - interpolates the run against server time;
 - emits regular AC `PositionUpdate` packets at the server tick rate;
 - includes recorded steering, four wheel speeds, RPM, gear, throttle and brake lights;
 - loops automatically with configurable start/reset delays for the first visual/contact test.
+
+Run schema v3 records the physics transform required by AC network packets. Legacy v1/v2 recordings used CSP’s visual/model origin; the fixture reads `GRAPHICS_OFFSET` from the recorded car’s `car.ini` and the server plugin converts those frames back to physics origin during playback.
 
 It intentionally does not yet provide in-game commands or distribution packaging. The localhost fixture and launcher are automated; the first exit criterion is narrower: prove that the remote-car renderer fixes body height, wheel/suspension animation, smoke and audio, and that contact affects the chase car without moving the recorded leader.
 

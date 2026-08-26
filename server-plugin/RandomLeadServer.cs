@@ -86,6 +86,23 @@ public sealed class RandomLeadServer : IHostedService
         _entryCarManager.ClientDisconnected += OnClientDisconnected;
         Log.Information("Random lead loaded {RunId}: {Duration:F2}s, {Frames} frames, {Path}",
             _run.Id, _run.Duration, _run.Frames.Length, path);
+        float maxBodySpeed = _run.Frames.Max(frame => MathF.Sqrt(
+            (float)(frame[Vx] * frame[Vx] + frame[Vy] * frame[Vy] + frame[Vz] * frame[Vz])));
+        float maxWheelSpeed = _run.Frames
+            .Where(frame => frame.Length > WheelRr)
+            .SelectMany(frame => frame.Skip(WheelFl).Take(4))
+            .Select(value => MathF.Abs((float)value))
+            .DefaultIfEmpty(0)
+            .Max();
+        Log.Information("Run dynamics: max body speed {BodySpeed:F2} m/s, max wheel angular speed {WheelSpeed:F2} rad/s",
+            maxBodySpeed, maxWheelSpeed);
+        if (_run.Version <= 2)
+        {
+            Log.Information("Applying legacy GRAPHICS_OFFSET correction: ({X:F3}, {Y:F3}, {Z:F3})",
+                _configuration.LegacyGraphicsOffsetX,
+                _configuration.LegacyGraphicsOffsetY,
+                _configuration.LegacyGraphicsOffsetZ);
+        }
         return Task.CompletedTask;
     }
 
@@ -174,6 +191,8 @@ public sealed class RandomLeadServer : IHostedService
         Vector3 position = LerpVector(a, b, Px, Py, Pz, alpha);
         Vector3 look = SafeNormalize(LerpVector(a, b, Lx, Ly, Lz, alpha), Vector3.UnitZ);
         Vector3 up = SafeNormalize(LerpVector(a, b, Ux, Uy, Uz, alpha), Vector3.UnitY);
+        if (_run!.Version <= 2)
+            position = CorrectLegacyVisualOrigin(position, look, up);
         Vector3 velocity = LerpVector(a, b, Vx, Vy, Vz, alpha);
         Vector3 rotation = ToNetworkRotation(look, up);
         float steer = Lerp(a[Steer], b[Steer], alpha);
@@ -236,6 +255,15 @@ public sealed class RandomLeadServer : IHostedService
 
     private static Vector3 SafeNormalize(Vector3 value, Vector3 fallback) =>
         value.LengthSquared() > 0.000001f ? Vector3.Normalize(value) : fallback;
+
+    private Vector3 CorrectLegacyVisualOrigin(Vector3 position, Vector3 look, Vector3 up)
+    {
+        Vector3 side = SafeNormalize(Vector3.Cross(up, look), Vector3.UnitX);
+        return position
+               - side * _configuration.LegacyGraphicsOffsetX
+               - up * _configuration.LegacyGraphicsOffsetY
+               - look * _configuration.LegacyGraphicsOffsetZ;
+    }
 
     private static byte EncodeSignedUnit(float value) =>
         (byte)Math.Clamp(MathF.Round(127 + Math.Clamp(value, -1, 1) * 127), 0, 254);

@@ -23,4 +23,13 @@ public sealed class RandomLeadServerConfiguration
 
     [YamlMember(Description = "Delay between loops in seconds.")]
     public double LoopDelaySeconds { get; init; } = 3;
+
+    [YamlMember(Description = "Legacy v1/v2 visual-origin correction from car.ini GRAPHICS_OFFSET, X component.")]
+    public float LegacyGraphicsOffsetX { get; init; }
+
+    [YamlMember(Description = "Legacy v1/v2 visual-origin correction from car.ini GRAPHICS_OFFSET, Y component.")]
+    public float LegacyGraphicsOffsetY { get; init; }
+
+    [YamlMember(Description = "Legacy v1/v2 visual-origin correction from car.ini GRAPHICS_OFFSET, Z component.")]
+    public float LegacyGraphicsOffsetZ { get; init; }
 }

@@ -17,6 +17,32 @@ function Write-Utf8NoBom([string]$Path, [string]$Value) {
     [System.IO.File]::WriteAllText($Path, $Value, $encoding)
 }
 
+function Get-CarGraphicsOffset([string]$CarPath) {
+    $carIniPath = Join-Path $CarPath 'data\car.ini'
+    if (-not (Test-Path -LiteralPath $carIniPath -PathType Leaf)) {
+        return @(0.0, 0.0, 0.0)
+    }
+
+    $match = [regex]::Match(
+        [System.IO.File]::ReadAllText($carIniPath),
+        '(?im)^\s*GRAPHICS_OFFSET\s*=\s*([^;\r\n]+)')
+    if (-not $match.Success) {
+        return @(0.0, 0.0, 0.0)
+    }
+
+    $parts = $match.Groups[1].Value.Split(',')
+    if ($parts.Count -ne 3) {
+        throw "Invalid GRAPHICS_OFFSET in: $carIniPath"
+    }
+
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+    return @(
+        [double]::Parse($parts[0].Trim(), $culture),
+        [double]::Parse($parts[1].Trim(), $culture),
+        [double]::Parse($parts[2].Trim(), $culture)
+    )
+}
+
 function Assert-SafeContentId([string]$Value, [string]$Label) {
     if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^[A-Za-z0-9_.-]+$') {
         throw "Invalid $Label in run metadata: '$Value'"
@@ -59,7 +85,7 @@ if ([string]::IsNullOrWhiteSpace($RunFile)) {
 $RunFile = Resolve-FullPath $RunFile
 $run = Get-Content -LiteralPath $RunFile -Raw | ConvertFrom-Json
 if ($run.version -notin @(1, 2) -or $run.frames.Count -lt 2 -or [double]$run.duration -le 0) {
-    throw "Run is not a supported non-empty v1/v2 recording: $RunFile"
+    throw "Run is not a supported non-empty v1/v2/v3 recording: $RunFile"
 }
 
 Assert-SafeContentId $run.track 'track ID'
@@ -81,6 +107,7 @@ $skin = Get-ChildItem -LiteralPath (Join-Path $carPath 'skins') -Directory -Erro
 if (-not $skin) {
     throw "Recorded car has no installed skins: $carPath"
 }
+$graphicsOffset = Get-CarGraphicsOffset $carPath
 
 & (Join-Path $PSScriptRoot 'build-server-plugin.ps1') -AssettoServerSource $AssettoServerSource -Configuration $Configuration
 
@@ -182,6 +209,9 @@ RunFile: '$escapedRunFile'
 StartDelaySeconds: 5
 Loop: true
 LoopDelaySeconds: 3
+LegacyGraphicsOffsetX: $($graphicsOffset[0].ToString([System.Globalization.CultureInfo]::InvariantCulture))
+LegacyGraphicsOffsetY: $($graphicsOffset[1].ToString([System.Globalization.CultureInfo]::InvariantCulture))
+LegacyGraphicsOffsetZ: $($graphicsOffset[2].ToString([System.Globalization.CultureInfo]::InvariantCulture))
 "@
 
 Write-Utf8NoBom (Join-Path $cfgPath 'server_cfg.ini') $serverCfg
@@ -198,6 +228,7 @@ $runtimeInfo = [ordered]@{
     layout = [string]$run.layout
     car = [string]$run.car
     skin = $skin.Name
+    legacyGraphicsOffset = $graphicsOffset
     address = '127.0.0.1:9600'
     logs = (Join-Path $RuntimePath 'logs')
 }

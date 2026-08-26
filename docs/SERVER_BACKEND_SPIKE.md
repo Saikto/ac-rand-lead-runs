@@ -22,7 +22,7 @@ AssettoServer already sends synthetic traffic through AC/CSP’s native remote-c
 - includes recorded steering, four wheel speeds, RPM, gear, throttle and brake lights;
 - loops automatically with configurable start/reset delays for the first visual/contact test.
 
-It intentionally does not yet provide in-game commands, automatic server configuration or packaging. The first exit criterion is narrower: prove that the remote-car renderer fixes body height, wheel/suspension animation, smoke and audio, and that contact affects the chase car without moving the recorded leader.
+It intentionally does not yet provide in-game commands or distribution packaging. The localhost fixture and launcher are automated; the first exit criterion is narrower: prove that the remote-car renderer fixes body height, wheel/suspension animation, smoke and audio, and that contact affects the chase car without moving the recorded leader.
 
 ## Build
 
@@ -32,18 +32,17 @@ It intentionally does not yet provide in-game commands, automatic server configu
 
 The script uses an ignored checkout in `.tmp/AssettoServer` and refuses to build against a different upstream commit. AssettoServer targets .NET 9.
 
-## Server fixture required for the runtime test
+## Automated localhost fixture
 
-- local AssettoServer based on the pinned commit;
-- track/layout matching `latest.json`;
-- player slot at session ID 0;
-- reserved, unoccupied leader slot at session ID 1 using the recorded car model;
-- leader slot restricted so a real client cannot claim it;
-- server refresh rate 50 Hz or higher;
-- plugin DLL copied to the server `plugins/RandomLeadServerPlugin` directory;
-- generated `plugin_RandomLeadServerPlugin_config.yml` with `LeaderSessionId: 1`.
+Run:
 
-Configuration and a one-command launcher are the next implementation pass after the plugin compiles.
+```powershell
+.\tools\start-localhost-test.ps1
+```
+
+The launcher builds the pinned server/plugin, selects the newest `latest.json`, verifies installed content, generates two same-car slots, reserves session ID 1 for the leader, links the local AC content read-only through junctions, and starts a 50 Hz server on `127.0.0.1:9600`. Generated files and logs stay below ignored `.runtime/localhost-server`.
+
+See [LOCALHOST_TEST.md](LOCALHOST_TEST.md) for the manual runtime test.
 
 ## Licensing boundary
 

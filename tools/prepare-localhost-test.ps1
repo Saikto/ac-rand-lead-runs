@@ -84,7 +84,7 @@ if ([string]::IsNullOrWhiteSpace($RunFile)) {
 
 $RunFile = Resolve-FullPath $RunFile
 $run = Get-Content -LiteralPath $RunFile -Raw | ConvertFrom-Json
-if ($run.version -notin @(1, 2) -or $run.frames.Count -lt 2 -or [double]$run.duration -le 0) {
+if ($run.version -notin @(1, 2, 3) -or $run.frames.Count -lt 2 -or [double]$run.duration -le 0) {
     throw "Run is not a supported non-empty v1/v2/v3 recording: $RunFile"
 }
 

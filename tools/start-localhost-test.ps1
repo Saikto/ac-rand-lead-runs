@@ -8,17 +8,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$utf8Encoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::OutputEncoding = $utf8Encoding
+$OutputEncoding = $utf8Encoding
 $AssettoServerSource = [System.IO.Path]::GetFullPath($AssettoServerSource)
 $RuntimePath = [System.IO.Path]::GetFullPath($RuntimePath)
-
-if (-not $SkipPrepare) {
-    & (Join-Path $PSScriptRoot 'prepare-localhost-test.ps1') `
-        -AssettoCorsaPath $AssettoCorsaPath `
-        -AssettoServerSource $AssettoServerSource `
-        -RuntimePath $RuntimePath `
-        -RunFile $RunFile `
-        -LauncherSettingsPath $LauncherSettingsPath
-}
 
 $tcpPort = 9600
 $httpPort = 8081
@@ -33,9 +27,21 @@ if ($tcpPort -in $tcpPorts -or $tcpPort -in $udpPorts -or $httpPort -in $tcpPort
     throw "Port $tcpPort or $httpPort is already in use. Stop the previous localhost server and retry."
 }
 
-$serverProject = Join-Path $AssettoServerSource 'AssettoServer\AssettoServer.csproj'
+if (-not $SkipPrepare) {
+    & (Join-Path $PSScriptRoot 'prepare-localhost-test.ps1') `
+        -AssettoCorsaPath $AssettoCorsaPath `
+        -AssettoServerSource $AssettoServerSource `
+        -RuntimePath $RuntimePath `
+        -RunFile $RunFile `
+        -LauncherSettingsPath $LauncherSettingsPath
+}
+
+$serverExecutable = Join-Path $AssettoServerSource 'AssettoServer\bin\Release\net9.0\AssettoServer.exe'
 $serverCfg = Join-Path $RuntimePath 'cfg\server_cfg.ini'
 $entryList = Join-Path $RuntimePath 'cfg\entry_list.ini'
+if (-not (Test-Path -LiteralPath $serverExecutable -PathType Leaf)) {
+    throw "AssettoServer executable is missing: $serverExecutable"
+}
 
 Write-Output 'Starting AC Random Lead Runs localhost server.'
 Write-Output "Connect in Content Manager to 127.0.0.1:$tcpPort."
@@ -44,7 +50,7 @@ Write-Output "Logs: $(Join-Path $RuntimePath 'logs')"
 
 Push-Location $RuntimePath
 try {
-    dotnet run --project $serverProject --no-build -c Release -- `
+    & $serverExecutable `
         --plugins-from-workdir `
         -c $serverCfg `
         -e $entryList `

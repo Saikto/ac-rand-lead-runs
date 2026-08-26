@@ -18,6 +18,27 @@ function Write-Utf8NoBom([string]$Path, [string]$Value) {
     [System.IO.File]::WriteAllText($Path, $Value, $encoding)
 }
 
+function Copy-PluginWithRetry([string]$Source, [string]$Destination) {
+    $lastError = $null
+    for ($attempt = 1; $attempt -le 25; $attempt++) {
+        try {
+            Copy-Item -LiteralPath $Source -Destination $Destination -Force
+            return
+        }
+        catch [System.IO.IOException] {
+            $lastError = $_
+            if ((Test-Path -LiteralPath $Destination -PathType Leaf) -and
+                (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash -eq
+                (Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash) {
+                Write-Output 'Plugin DLL is already current; reusing the locked copy.'
+                return
+            }
+            if ($attempt -lt 25) { Start-Sleep -Milliseconds 200 }
+        }
+    }
+    throw "Could not update plugin DLL after 5 seconds. A previous AssettoServer process is still using '$Destination'. Stop that server and retry. Original error: $($lastError.Exception.Message)"
+}
+
 function Get-CarGraphicsOffset([string]$CarPath) {
     $carIniPath = Join-Path $CarPath 'data\car.ini'
     if (-not (Test-Path -LiteralPath $carIniPath -PathType Leaf)) {
@@ -206,7 +227,7 @@ if (-not (Test-Path -LiteralPath $pluginDll -PathType Leaf)) {
     throw "Plugin build output is missing: $pluginDll"
 }
 New-Item -ItemType Directory -Path (Join-Path $AssettoServerSource "AssettoServer\bin\$Configuration\net9.0\plugins") -Force | Out-Null
-Copy-Item -LiteralPath $pluginDll -Destination (Join-Path $pluginPath 'RandomLeadServerPlugin.dll') -Force
+Copy-PluginWithRetry $pluginDll (Join-Path $pluginPath 'RandomLeadServerPlugin.dll')
 
 $serverCfg = @"
 [SERVER]

@@ -35,6 +35,8 @@ HTTP port пока зафиксирован на `8081`, потому что к 
 
 Launcher сохраняет профиль в ignored `.runtime\launcher\settings.json`, генерирует отдельный fixture `.runtime\launcher-server`, собирает актуальный plugin и запускает AssettoServer без дополнительного консольного окна. Экран показывает состояния `starting`, `ready`, `stopped`, `error`, live output, Stop и CM invite link.
 
+`Stop` завершает и wrapper, и принадлежащий launcher процесс AssettoServer, после чего освобождаются порты и plugin DLL. При следующем Start launcher также убирает оставшийся процесс именно своей сборки AssettoServer на выбранных портах. Если порт занят другим приложением, проверка завершается понятной ошибкой до сборки и копирования DLL.
+
 ## Ограничения первой версии
 
 - каталог сканируется при запуске launcher; для новых recordings launcher пока нужно перезапустить;

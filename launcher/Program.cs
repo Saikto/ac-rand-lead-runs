@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 
 const string launcherUrl = "http://127.0.0.1:32123";
@@ -68,6 +69,7 @@ public sealed class LauncherService : IDisposable
     private readonly string _assettoCorsaRoot;
     private readonly string _runsRoot;
     private readonly string _settingsPath;
+    private readonly string _assettoServerExecutable;
     private Process? _serverProcess;
     private LauncherCatalog? _catalog;
     private bool _ready;
@@ -81,6 +83,7 @@ public sealed class LauncherService : IDisposable
         _runsRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "Assetto Corsa", "ac-random-lead-runs", "runs");
         _settingsPath = Path.Combine(_repoRoot, ".runtime", "launcher", "settings.json");
+        _assettoServerExecutable = Path.Combine(_repoRoot, ".tmp", "AssettoServer", "AssettoServer", "bin", "Release", "net9.0", "AssettoServer.exe");
     }
 
     public LauncherCatalog GetCatalog()
@@ -150,6 +153,7 @@ public sealed class LauncherService : IDisposable
             _stopping = false;
             _lastError = "";
             while (_log.TryDequeue(out _)) { }
+            StopManagedServerOnConfiguredPorts(settings);
             AppendLog("Launcher: preparing localhost server…");
 
             var startInfo = new ProcessStartInfo
@@ -160,6 +164,8 @@ public sealed class LauncherService : IDisposable
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                StandardOutputEncoding = new UTF8Encoding(false),
+                StandardErrorEncoding = new UTF8Encoding(false),
             };
             startInfo.ArgumentList.Add("-NoProfile");
             startInfo.ArgumentList.Add("-ExecutionPolicy");
@@ -189,6 +195,7 @@ public sealed class LauncherService : IDisposable
     public async Task StopServerAsync()
     {
         Process? process;
+        LauncherSettings settings = GetSettings();
         lock (_sync) process = _serverProcess;
         if (process is { HasExited: false })
         {
@@ -197,6 +204,7 @@ public sealed class LauncherService : IDisposable
             process.Kill(true);
             await process.WaitForExitAsync();
         }
+        StopManagedServerOnConfiguredPorts(settings);
         lock (_sync)
         {
             _ready = false;
@@ -341,6 +349,62 @@ public sealed class LauncherService : IDisposable
         while (_log.Count > 500) _log.TryDequeue(out _);
     }
 
+    private void StopManagedServerOnConfiguredPorts(LauncherSettings settings)
+    {
+        foreach (int processId in FindListenerProcessIds(settings.TcpPort, settings.HttpPort))
+        {
+            try
+            {
+                using Process process = Process.GetProcessById(processId);
+                if (!process.ProcessName.Equals("AssettoServer", StringComparison.OrdinalIgnoreCase)) continue;
+                string? executable = process.MainModule?.FileName;
+                if (string.IsNullOrWhiteSpace(executable) || !PathEquals(executable, _assettoServerExecutable)) continue;
+                AppendLog($"Launcher: stopping stale managed AssettoServer process {processId}…");
+                process.Kill(true);
+                process.WaitForExit(5000);
+            }
+            catch (ArgumentException) { /* Process exited between discovery and cleanup. */ }
+            catch (InvalidOperationException) { /* Process exited between discovery and cleanup. */ }
+            catch (System.ComponentModel.Win32Exception exception)
+            {
+                AppendLog($"Launcher: could not stop stale AssettoServer process {processId}: {exception.Message}");
+            }
+        }
+    }
+
+    private static int[] FindListenerProcessIds(params int[] ports)
+    {
+        var processIds = new HashSet<int>();
+        try
+        {
+            using var netstat = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "netstat.exe",
+                    Arguments = "-ano -p TCP",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    StandardOutputEncoding = Encoding.ASCII,
+                }
+            };
+            netstat.Start();
+            string output = netstat.StandardOutput.ReadToEnd();
+            netstat.WaitForExit(3000);
+            foreach (string line in output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+            {
+                string[] columns = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                if (columns.Length < 5 || !columns[0].Equals("TCP", StringComparison.OrdinalIgnoreCase)) continue;
+                int separator = columns[1].LastIndexOf(':');
+                if (separator < 0 || !int.TryParse(columns[1][(separator + 1)..], out int port) || !ports.Contains(port)) continue;
+                if (int.TryParse(columns[^1], out int processId)) processIds.Add(processId);
+            }
+        }
+        catch { /* The start script still provides a clear port-in-use error if discovery is unavailable. */ }
+        return processIds.ToArray();
+    }
+
     private static bool PathEquals(string a, string b) => string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 
     private static string FindRepoRoot(string start)
@@ -357,6 +421,7 @@ public sealed class LauncherService : IDisposable
     public void Dispose()
     {
         if (_serverProcess is { HasExited: false }) _serverProcess.Kill(true);
+        StopManagedServerOnConfiguredPorts(GetSettings());
         _serverProcess?.Dispose();
     }
 }

@@ -134,7 +134,6 @@ function renderServerStatus(status) {
   const log = status.log?.length ? status.log.join('\n') : 'Launcher is ready.';
   if ($('serverLog').textContent !== log) { $('serverLog').textContent = log; $('serverLog').scrollTop = $('serverLog').scrollHeight; }
   $('launchButton').disabled = status.running;
-  $('topLaunchButton').disabled = status.running;
   $('stopButton').disabled = !status.running;
   $('connectButton').href = status.connectUrl;
   $('connectButton').classList.toggle('disabled', !status.ready);
@@ -147,16 +146,25 @@ async function save() {
 }
 
 async function launch() {
+  $('launchButton').disabled = true;
   try {
     readForm();
     const status = await api('/api/server/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state.settings) });
     renderServerStatus(status); switchPage('launch'); toast('Server preparation started');
-  } catch (error) { toast(error.message, true); }
+  } catch (error) {
+    $('launchButton').disabled = false;
+    $('stopButton').disabled = true;
+    toast(error.message, true);
+  }
 }
 
 async function stop() {
+  $('stopButton').disabled = true;
   try { renderServerStatus(await api('/api/server/stop', { method: 'POST' })); toast('Server stopped'); }
-  catch (error) { toast(error.message, true); }
+  catch (error) {
+    if (state.server) renderServerStatus(state.server);
+    toast(error.message, true);
+  }
 }
 
 function switchPage(page) {
@@ -188,7 +196,6 @@ fields.filter(id => !['playerCar', 'playerSkin'].includes(id)).forEach(id => $(i
 ['loop', 'stabilityAllowed', 'autoClutchAllowed', 'tyreBlanketsAllowed'].forEach(id => $(id).addEventListener('change', readForm));
 $('saveButton').addEventListener('click', () => save().catch(error => toast(error.message, true)));
 $('launchButton').addEventListener('click', launch);
-$('topLaunchButton').addEventListener('click', launch);
 $('stopButton').addEventListener('click', stop);
 setInterval(pollStatus, 1000);
 init();

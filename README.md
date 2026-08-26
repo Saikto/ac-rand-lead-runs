@@ -1,14 +1,27 @@
 # AC Random Lead Runs
 
-Offline-тренажёр chase-заездов для оригинальной Assetto Corsa с Custom Shaders Patch.
+Тренажёр chase-заездов для оригинальной Assetto Corsa с Custom Shaders Patch.
 
-Идея: записывать собственные lead runs, собирать из удачных проездов библиотеку и запускать их по одному или случайно, не зная заранее траекторию следующего лидера.
+Проект записывает собственные lead runs в offline Recorder mode и воспроизводит выбранного или случайного лидера через локальный AssettoServer. Управление записью и playback выполняется из одного resizeable in-game app window без хоткеев.
 
-Текущее состояние: Phase 2 vertical slice — запись сохраняет постоянную библиотеку ранов, а localhost AssettoServer воспроизводит лидера через штатный network renderer. In-game app управляет выбранным, следующим и случайным раном без хоткеев. Дым шин пока отложен. Основные документы:
+Текущее состояние:
 
-- [PRD и технический план](docs/PRD.md)
-- [Инструкция ручной проверки Phase 0](docs/PHASE0_TEST.md)
-- [Инструкция ручной проверки Phase 1](docs/PHASE1_TEST.md)
-- [Решение о смене playback backend](docs/PLAYBACK_BACKEND_DECISION.md)
-- [Localhost remote-car backend spike](docs/SERVER_BACKEND_SPIKE.md)
-- [Проверка localhost remote leader](docs/LOCALHOST_TEST.md)
+- постоянная JSON-библиотека ранов;
+- ручные Start/Stop/Keep/Discard;
+- current/next/random/restart/stop playback;
+- нативный remote-car renderer, engine audio и односторонний контакт;
+- tyre smoke и автоматическая упаковка пока не реализованы.
+
+Документы:
+
+- [PRD и актуальная архитектура](docs/PRD.md)
+- [Запуск и ручная проверка](docs/LOCALHOST_TEST.md)
+- [Принятый playback backend](docs/PLAYBACK_BACKEND.md)
+
+## Локальная установка
+
+```powershell
+.\tools\install.ps1
+```
+
+После первой установки включи app `Random Lead Runs` в Content Manager. Для записи выбери New Mode `AC Random Lead Runs — Recorder`; для chase запусти localhost server по инструкции ниже.

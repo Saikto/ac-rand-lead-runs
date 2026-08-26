@@ -2,6 +2,17 @@
 
 Цель текущего теста — проверить библиотеку ранов, server-side playback state machine и управление из resizeable CSP app window. Высота кузова, колёса, звук и односторонний контакт backend-а уже подтверждены; дым шин отложен.
 
+## 0. Проверка recorder
+
+После установки через `.\tools\install.ps1` включи app `Random Lead Runs` в Content Manager и запусти New Mode `AC Random Lead Runs — Recorder`.
+
+1. Нажми `Start recording` и проедь несколько секунд.
+2. Нажми `Stop recording`.
+3. Убедись, что обе кнопки `Keep run` и `Discard run` активны.
+4. Нажми `Keep run` и проверь статус `saved` либо `Discard run` и статус `idle`.
+
+Recorder больше не требует opponent car и не содержит старых playback/debug-кнопок.
+
 ## 1. Запуск сервера
 
 Открой PowerShell в корне репозитория и выполни:
@@ -10,7 +21,7 @@
 .\tools\start-localhost-test.ps1
 ```
 
-При первом запуске сборка может занять некоторое время и показать предупреждения об upstream `Scriban`. Для этого localhost-spike они ожидаемы. Дождись строки:
+При первом запуске сборка может занять некоторое время и показать предупреждения об upstream `Scriban`. Для localhost fixture они ожидаемы. Дождись строки:
 
 ```text
 Server startup completed
@@ -35,7 +46,7 @@ Launcher автоматически:
 
 Сервер уже настроен на машину и layout из текущего рана. После загрузки лидер должен появиться и начать playback через 5 секунд. Между повторами — пауза 3 секунды.
 
-Открой resizeable app window `Random Lead Runs — Phase 1`. В online-сессии оно автоматически подключается к локальному API на `127.0.0.1:8081` и показывает серверный статус.
+Открой resizeable app window `Random Lead Runs`. В online-сессии оно автоматически подключается к локальному API на `127.0.0.1:8081` и показывает серверный статус.
 
 ## 3. Кнопки
 

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Random Lead Runs</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RL</div>
+        <div><strong>Random Lead</strong><span>Session launcher</span></div>
+      </div>
+      <nav>
+        <button class="nav active" data-page="library"><span>01</span> Run library</button>
+        <button class="nav" data-page="session"><span>02</span> Session setup</button>
+        <button class="nav" data-page="launch"><span>03</span> Launch & status</button>
+      </nav>
+      <div class="sidebar-status">
+        <span id="sidebarDot" class="dot"></span>
+        <div><strong id="sidebarState">Stopped</strong><small id="sidebarAddress">127.0.0.1:9600</small></div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">ASSETTO CORSA · LOCAL TRAINING</p>
+          <h1 id="pageTitle">Run library</h1>
+        </div>
+        <div class="top-actions">
+          <button id="saveButton" class="button secondary">Save profile</button>
+          <button id="topLaunchButton" class="button primary">Launch server</button>
+        </div>
+      </header>
+
+      <section id="page-library" class="page active">
+        <div class="section-heading">
+          <div><h2>Choose the lead library</h2><p>Runs are grouped by their recorded track, layout and leader car.</p></div>
+          <div id="runCount" class="count">0 runs</div>
+        </div>
+        <div id="runGrid" class="run-grid"></div>
+      </section>
+
+      <section id="page-session" class="page">
+        <div class="section-heading">
+          <div><h2>Build the chase session</h2><p>The track and leader come from the selected recording. Everything else is yours.</p></div>
+        </div>
+        <div class="form-layout">
+          <article class="panel wide">
+            <div class="panel-title"><span>Driver slot</span><small>CHASE CAR</small></div>
+            <div class="field-grid">
+              <label class="field span-2"><span>Player car</span><select id="playerCar"></select></label>
+              <label class="field span-2"><span>Skin</span><select id="playerSkin"></select></label>
+              <label class="field span-2"><span>Server name</span><input id="serverName" type="text" maxlength="80"></label>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-title"><span>Conditions</span><small>ENVIRONMENT</small></div>
+            <div class="field-grid">
+              <label class="field span-2"><span>Weather</span><select id="weather"></select></label>
+              <label class="field"><span>Ambient °C</span><input id="ambientTemperature" type="number" min="-20" max="50"></label>
+              <label class="field"><span>Road °C</span><input id="roadTemperature" type="number" min="-20" max="80"></label>
+              <label class="field span-2"><span>Sun angle</span><input id="sunAngle" type="range" min="-80" max="80" step="1"><output id="sunAngleValue"></output></label>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-title"><span>Playback</span><small>ATTEMPTS</small></div>
+            <div class="field-grid">
+              <label class="field"><span>Start delay, s</span><input id="startDelaySeconds" type="number" min="0" max="60" step="0.5"></label>
+              <label class="field"><span>Loop delay, s</span><input id="loopDelaySeconds" type="number" min="0" max="60" step="0.5"></label>
+              <label class="toggle span-2"><input id="loop" type="checkbox"><span></span><div><strong>Loop attempts</strong><small>Keep the selected/random mode running</small></div></label>
+            </div>
+          </article>
+
+          <article class="panel wide advanced-panel">
+            <details>
+              <summary>Advanced network settings</summary>
+              <div class="field-grid advanced-fields">
+                <label class="field"><span>AC TCP/UDP port</span><input id="tcpPort" type="number" min="1024" max="65535"></label>
+                <label class="field"><span>HTTP/API port · fixed for in-game app</span><input id="httpPort" type="number" min="1024" max="65535" disabled></label>
+              </div>
+            </details>
+          </article>
+        </div>
+      </section>
+
+      <section id="page-launch" class="page">
+        <div class="launch-layout">
+          <article class="launch-card">
+            <p class="eyebrow">READY CHECK</p>
+            <h2 id="launchTrack">Select a run</h2>
+            <p id="launchRun" class="muted">The selected run will appear here.</p>
+            <dl class="summary">
+              <div><dt>Chase car</dt><dd id="summaryCar">—</dd></div>
+              <div><dt>Conditions</dt><dd id="summaryWeather">—</dd></div>
+              <div><dt>Playback</dt><dd id="summaryPlayback">—</dd></div>
+              <div><dt>Address</dt><dd id="summaryAddress">—</dd></div>
+            </dl>
+            <div class="launch-actions">
+              <button id="launchButton" class="button primary large">Launch server</button>
+              <button id="stopButton" class="button danger large">Stop</button>
+              <a id="connectButton" class="button secondary large disabled" href="#" target="_blank" rel="noreferrer">Connect via CM</a>
+            </div>
+          </article>
+          <article class="console-card">
+            <div class="console-head"><span><i id="consoleDot" class="dot"></i><strong id="consoleState">Stopped</strong></span><small>LIVE SERVER OUTPUT</small></div>
+            <pre id="serverLog">Launcher is ready.</pre>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

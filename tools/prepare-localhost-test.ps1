@@ -3,6 +3,7 @@ param(
     [string]$AssettoServerSource = (Join-Path $PSScriptRoot '..\.tmp\AssettoServer'),
     [string]$RuntimePath = (Join-Path $PSScriptRoot '..\.runtime\localhost-server'),
     [string]$RunFile = '',
+    [string]$LauncherSettingsPath = '',
     [string]$Configuration = 'Release'
 )
 
@@ -67,6 +68,18 @@ $AssettoCorsaPath = Resolve-FullPath $AssettoCorsaPath
 $AssettoServerSource = Resolve-FullPath $AssettoServerSource
 $RuntimePath = Resolve-FullPath $RuntimePath
 
+$launcherSettings = $null
+if (-not [string]::IsNullOrWhiteSpace($LauncherSettingsPath)) {
+    $LauncherSettingsPath = Resolve-FullPath $LauncherSettingsPath
+    if (-not (Test-Path -LiteralPath $LauncherSettingsPath -PathType Leaf)) {
+        throw "Launcher settings file does not exist: $LauncherSettingsPath"
+    }
+    $launcherSettings = Get-Content -LiteralPath $LauncherSettingsPath -Raw | ConvertFrom-Json
+    if ([string]::IsNullOrWhiteSpace($RunFile)) {
+        $RunFile = [string]$launcherSettings.runFile
+    }
+}
+
 if (-not (Test-Path -LiteralPath $AssettoCorsaPath -PathType Container)) {
     throw "Assetto Corsa folder does not exist: $AssettoCorsaPath"
 }
@@ -101,13 +114,61 @@ if (-not (Test-Path -LiteralPath $carPath -PathType Container)) {
     throw "Recorded car is not installed: $carPath"
 }
 
-$skin = Get-ChildItem -LiteralPath (Join-Path $carPath 'skins') -Directory -ErrorAction SilentlyContinue |
+$leaderSkin = Get-ChildItem -LiteralPath (Join-Path $carPath 'skins') -Directory -ErrorAction SilentlyContinue |
     Sort-Object Name |
     Select-Object -First 1
-if (-not $skin) {
+if (-not $leaderSkin) {
     throw "Recorded car has no installed skins: $carPath"
 }
 $graphicsOffset = Get-CarGraphicsOffset $carPath
+
+$playerCar = if ($launcherSettings -and -not [string]::IsNullOrWhiteSpace([string]$launcherSettings.playerCar)) {
+    [string]$launcherSettings.playerCar
+} else { [string]$run.car }
+Assert-SafeContentId $playerCar 'player car ID'
+$playerCarPath = Join-Path $AssettoCorsaPath "content\cars\$playerCar"
+if (-not (Test-Path -LiteralPath $playerCarPath -PathType Container)) {
+    throw "Selected player car is not installed: $playerCarPath"
+}
+$playerSkin = if ($launcherSettings -and -not [string]::IsNullOrWhiteSpace([string]$launcherSettings.playerSkin)) {
+    [string]$launcherSettings.playerSkin
+} else {
+    (Get-ChildItem -LiteralPath (Join-Path $playerCarPath 'skins') -Directory -ErrorAction SilentlyContinue |
+        Sort-Object Name | Select-Object -First 1).Name
+}
+Assert-SafeContentId $playerSkin 'player skin ID'
+if (-not (Test-Path -LiteralPath (Join-Path $playerCarPath "skins\$playerSkin") -PathType Container)) {
+    throw "Selected player skin is not installed: $playerSkin"
+}
+
+$serverName = if ($launcherSettings -and -not [string]::IsNullOrWhiteSpace([string]$launcherSettings.serverName)) {
+    ([string]$launcherSettings.serverName).Replace("`r", ' ').Replace("`n", ' ')
+} else { 'AC Random Lead Runs (localhost)' }
+$serverName = $serverName.Replace('=', '-').Trim()
+$weather = if ($launcherSettings -and -not [string]::IsNullOrWhiteSpace([string]$launcherSettings.weather)) {
+    [string]$launcherSettings.weather
+} else { '3_clear' }
+Assert-SafeContentId $weather 'weather ID'
+if (-not (Test-Path -LiteralPath (Join-Path $AssettoCorsaPath "content\weather\$weather") -PathType Container)) {
+    throw "Selected weather is not installed: $weather"
+}
+$ambientTemperature = if ($launcherSettings) { [int]$launcherSettings.ambientTemperature } else { 18 }
+$roadTemperature = if ($launcherSettings) { [int]$launcherSettings.roadTemperature } else { 24 }
+$sunAngle = if ($launcherSettings) { [double]$launcherSettings.sunAngle } else { 6 }
+$startDelaySeconds = if ($launcherSettings) { [double]$launcherSettings.startDelaySeconds } else { 5 }
+$loopDelaySeconds = if ($launcherSettings) { [double]$launcherSettings.loopDelaySeconds } else { 3 }
+$loopEnabled = if ($launcherSettings) { [bool]$launcherSettings.loop } else { $true }
+$tcpPort = if ($launcherSettings) { [int]$launcherSettings.tcpPort } else { 9600 }
+$httpPort = if ($launcherSettings) { [int]$launcherSettings.httpPort } else { 8081 }
+if ($ambientTemperature -lt -20 -or $ambientTemperature -gt 50) { throw 'Ambient temperature must be between -20 and 50 C' }
+if ($roadTemperature -lt -20 -or $roadTemperature -gt 80) { throw 'Road temperature must be between -20 and 80 C' }
+if ($sunAngle -lt -80 -or $sunAngle -gt 80) { throw 'Sun angle must be between -80 and 80 degrees' }
+if ($startDelaySeconds -lt 0 -or $startDelaySeconds -gt 60 -or $loopDelaySeconds -lt 0 -or $loopDelaySeconds -gt 60) {
+    throw 'Playback delays must be between 0 and 60 seconds'
+}
+if ($tcpPort -lt 1024 -or $tcpPort -gt 65535 -or $httpPort -lt 1024 -or $httpPort -gt 65535 -or $tcpPort -eq $httpPort) {
+    throw 'TCP and HTTP ports must be distinct values between 1024 and 65535'
+}
 
 & (Join-Path $PSScriptRoot 'build-server-plugin.ps1') -AssettoServerSource $AssettoServerSource -Configuration $Configuration
 
@@ -129,15 +190,15 @@ Copy-Item -LiteralPath $pluginDll -Destination (Join-Path $pluginPath 'RandomLea
 
 $serverCfg = @"
 [SERVER]
-NAME=AC Random Lead Runs (localhost)
+NAME=$serverName
 CONFIG_TRACK=$($run.layout)
 TRACK=$($run.track)
-SUN_ANGLE=6
+SUN_ANGLE=$($sunAngle.ToString([System.Globalization.CultureInfo]::InvariantCulture))
 PASSWORD=
 ADMIN_PASSWORD=
-UDP_PORT=9600
-TCP_PORT=9600
-HTTP_PORT=8081
+UDP_PORT=$tcpPort
+TCP_PORT=$tcpPort
+HTTP_PORT=$httpPort
 MAX_CLIENTS=2
 CLIENT_SEND_INTERVAL_HZ=50
 LOOP_MODE=1
@@ -162,9 +223,9 @@ INFINITE=1
 SESSION_START=100
 
 [WEATHER_0]
-GRAPHICS=3_clear_type=15
-BASE_TEMPERATURE_AMBIENT=18
-BASE_TEMPERATURE_ROAD=24
+GRAPHICS=$weather
+BASE_TEMPERATURE_AMBIENT=$ambientTemperature
+BASE_TEMPERATURE_ROAD=$roadTemperature
 VARIATION_AMBIENT=0
 VARIATION_ROAD=0
 WIND_BASE_SPEED_MIN=0
@@ -175,13 +236,13 @@ WIND_VARIATION_DIRECTION=0
 
 $entryList = @"
 [CAR_0]
-MODEL=$($run.car)
-SKIN=$($skin.Name)
+MODEL=$playerCar
+SKIN=$playerSkin
 GUID=
 
 [CAR_1]
 MODEL=$($run.car)
-SKIN=$($skin.Name)
+SKIN=$($leaderSkin.Name)
 GUID=1
 "@
 
@@ -210,9 +271,9 @@ LeaderSessionId: 1
 RunFile: '$escapedRunFile'
 RunDirectory: '$escapedRunDirectory'
 AutoStart: true
-StartDelaySeconds: 5
-Loop: true
-LoopDelaySeconds: 3
+StartDelaySeconds: $($startDelaySeconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))
+Loop: $($loopEnabled.ToString().ToLowerInvariant())
+LoopDelaySeconds: $($loopDelaySeconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))
 LegacyGraphicsOffsetX: $($graphicsOffset[0].ToString([System.Globalization.CultureInfo]::InvariantCulture))
 LegacyGraphicsOffsetY: $($graphicsOffset[1].ToString([System.Globalization.CultureInfo]::InvariantCulture))
 LegacyGraphicsOffsetZ: $($graphicsOffset[2].ToString([System.Globalization.CultureInfo]::InvariantCulture))
@@ -232,9 +293,16 @@ $runtimeInfo = [ordered]@{
     track = [string]$run.track
     layout = [string]$run.layout
     car = [string]$run.car
-    skin = $skin.Name
+    leaderSkin = $leaderSkin.Name
+    playerCar = $playerCar
+    playerSkin = $playerSkin
+    weather = $weather
+    ambientTemperature = $ambientTemperature
+    roadTemperature = $roadTemperature
+    sunAngle = $sunAngle
     legacyGraphicsOffset = $graphicsOffset
-    address = '127.0.0.1:9600'
+    address = "127.0.0.1:$tcpPort"
+    httpPort = $httpPort
     logs = (Join-Path $RuntimePath 'logs')
 }
 Write-Utf8NoBom (Join-Path $RuntimePath 'runtime-info.json') ($runtimeInfo | ConvertTo-Json)
@@ -242,5 +310,5 @@ Write-Utf8NoBom (Join-Path $RuntimePath 'runtime-info.json') ($runtimeInfo | Con
 Write-Output "Localhost fixture prepared: $RuntimePath"
 Write-Output "Run: $($run.id) ($([Math]::Round([double]$run.duration, 2)) s)"
 Write-Output "Content: $($run.track) / $($run.layout) / $($run.car)"
-Write-Output 'Connect address: 127.0.0.1:9600'
+Write-Output "Connect address: 127.0.0.1:$tcpPort"
 Write-Output "Logs: $(Join-Path $RuntimePath 'logs')"

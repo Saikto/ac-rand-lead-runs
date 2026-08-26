@@ -42,6 +42,9 @@ Recorded Leader in localhost online session
 Single resizeable CSP app window
   offline ──► recorder commands
   online  ──► loopback HTTP playback commands
+
+Local browser launcher
+  library/session settings ──► generated fixture ──► managed AssettoServer process
 ```
 
 ### 3.1 Recorder
@@ -84,7 +87,7 @@ New Mode записывает player car с частотой 50 Hz: physics tran
 ## 5. Ограничения
 
 - Сервер читает библиотеку только при старте.
-- Нет metadata index, enabled toggle и автоматического launcher flow.
+- Нет metadata index, enabled toggle/delete и live rescan.
 - Нет tyre smoke у synthetic remote leader.
 - Публичная упаковка AssettoServer требует AGPL-compatible решения.
 - Pinned AssettoServer приносит upstream advisories для Scriban; packaging заблокирован до обновления или отдельной оценки риска.
@@ -105,7 +108,7 @@ New Mode записывает player car с частотой 50 Hz: physics tran
 1. Диагностировать remote wheel/slip/suspension state и решить судьбу smoke/skid marks на основании измерений.
 2. Library UI: список ранов, enable/disable, delete с подтверждением, live reload и человекочитаемые названия.
 3. Start preparation: отдельные состояния `armed` и `countdown`, лидер ждёт на первой позиции, пользователь запускает отсчёт после построения chase car.
-4. Local launcher UI без PowerShell: выбор трассы/layout, разрешённых машин, погоды, температуры, времени, session и playback-настроек.
+4. Расширить готовый local launcher: live rescan, несколько разрешённых chase cars, metadata и standalone packaging.
 5. Нагрузочный тест библиотеки из 20+ ранов и packaging.
 6. Polishing: trim, metadata, фильтры и компактный production status вместо диагностического блока.
 
@@ -121,3 +124,11 @@ New Mode записывает player car с частотой 50 Hz: physics tran
 4. `In-game` — только подготовка попытки и управление playback; серверные настройки остаются в launcher, чтобы не перегружать окно во время езды.
 
 Нормальная подготовка старта означает двухшаговый flow: выбор рана ставит лидера неподвижно на первый кадр (`armed`), а отдельная кнопка `Start attempt` запускает видимый отсчёт `3–2–1–GO`. Так chase car может спокойно занять позицию. Для быстрых повторов будет опциональный auto-countdown; random run остаётся скрытым. Restart сначала возвращает лидера на старт, поэтому не начинается неожиданно, пока chase car ещё разворачивается.
+
+## 9. Последующий POC: полноценный protocol bot
+
+Диагностика synthetic leader показала, что v3 wheel speed корректно проходит как legacy, так и CSP Custom Update transport, а `speedDifference` достигает 18 m/s. При этом remote state постоянно возвращает `slipRatio=0`, `nSlip=0.001`, `loadK=1` и `suspensionTravel=0`; штатные smoke, skid marks и полноценная suspension state не появляются.
+
+После launcher/MVP нужно провести отдельный POC с локальным leader bot process, который проходит обычный AC TCP/UDP handshake и отправляет recording как полноценный сетевой клиент. AssettoServer в этом варианте ретранслирует лидера тем же путём, что реального online player. Текущие run library, state machine, API и UI сохраняются, меняется только нижний playback transport.
+
+Критерий POC: на одном и том же recording сравнить synthetic slot и protocol bot по smoke, skid marks, suspension animation, audio, collision impulse и trajectory determinism. Если полноценный client identity не возвращает нативные эффекты, smoke реализуется client-side от уже подтверждённого `speedDifference`, а skid marks оцениваются отдельным spike.
